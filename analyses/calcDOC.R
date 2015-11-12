@@ -32,7 +32,7 @@ setwd("~/GitHub/ResourceHeterogeneity")
 # 2011 Data                                                                    #
 ################################################################################
 
-raw.data=read.delim("DOC_TN_Raw.txt", header=TRUE)
+raw.data=read.delim("./data/HMWF2011_DOC_TN_Raw.txt", header=TRUE)
 raw.data
 
 #Standard Curve
@@ -71,7 +71,7 @@ raw <- c(raw.data[132,5],raw.data[140,5],raw.data[149,5],raw.data[159,5],
 
 #Predictions for Sample Data
 exp.2 <- c(0,5,10,25,50,100,rep(NA, 22))
-obs.2 <- raw
+obs.2 <- c(obs, raw)
 crv.2 <- lm(exp.2 ~ obs.2)
 summary(crv.2)
 pred.frame.2 <- data.frame(obs.2)
