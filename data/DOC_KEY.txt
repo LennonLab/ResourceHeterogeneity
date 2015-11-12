@@ -1,0 +1,25 @@
+Key To DOC Samples
+
+Site          Sample Name
+Ives          MEM2011_001
+Ives          MEM2011_002
+Howe          MEM2011_003
+Howe          MEM2011_004
+Rush          MEM2011_005
+Rush          MEM2011_006
+N. Pony       MEM2011_007
+N. Pony       MEM2011_008
+S. Pony       MEM2011_009
+S. Pony       MEM2011_010
+Upper Pine    MEM2011_011
+Upper Pine    MEM2011_012
+Second Pine   MEM2011_013
+Second Pine   MEM2011_014
+Mountain      MEM2011_015
+Mointain      MEM2011_016
+Lily          MEM2011_017
+Lily          MEM2011_018
+Ann           MEM2011_019
+Ann           MEM2011_020
+Canyon        MEM2011_021
+Canyon        MEM2011_022
