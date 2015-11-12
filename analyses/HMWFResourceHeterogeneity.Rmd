@@ -1,0 +1,97 @@
+---
+title: "Reservoir Gradient"
+author: "Mario E. Muscarella"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+header-includes:
+   - \usepackage{array}
+   - \usepackage{graphics}
+output: 
+  pdf_document:
+    fig_caption: true
+---
+
+Contributions of Resource Concentration and Heterogeneity to Microbial Diversity and Function
+
+# Initial Setup
+```{r results='hide', message=FALSE}
+rm(list=ls())
+getwd()
+setwd("~/GitHub/ResourceHeterogeneity/analyses")
+opar <- par(no.readonly = TRUE)  # Saves plot defaults
+```
+
+# Lake Nutrient Concentrations
+
+```{r}
+# DOC
+DOC2011 <- read.delim("../data/2011DOC_data.txt", header=T)
+DOC2012 <- read.delim("../data/2012DOC_data.txt", header=T)
+DOC <- rbind(DOC2011, DOC2012)
+DOC <- DOC[grep("MEM*", DOC$Sample), ]
+colnames(DOC) <- c("sample", "conc", "LCL", "UCL", "se")
+DOCkey <- read.delim("../data/DOC_Key_epi.txt", header=T)
+DOC$code <- DOC$sample
+DOC <- DOC[which(DOC$code %in% DOCkey$Sample.Name), ]
+DOC$sample <- DOCkey$Site[match(DOCkey$Sample.Name, DOC$code)]
+DOC$year <- substr(DOC$code, 4, 7)
+DOC$sample[grep("Pony", DOC$sample)] <- "Pony"
+DOC <- droplevels(DOC)
+plot(log(DOC$conc) ~ DOC$sample)
+
+# Total Nitrogen
+TN2011 <- read.delim("../data/2011TN_data.txt", header=T)
+TN2012 <- read.delim("../data/2012TN_data.txt", header=T)
+TN <- rbind(TN2011, TN2012)
+TN <- TN[grep("MEM*", TN$Sample), ]
+colnames(TN) <- c("sample", "conc", "LCL", "UCL", "se")
+TNkey <- read.delim("../data/DOC_Key_epi.txt", header=T)
+TN$code <- TN$sample
+TN <- TN[which(TN$code %in% TNkey$Sample.Name), ]
+TN$sample <- TNkey$Site[match(TNkey$Sample.Name, TN$code)]
+TN$year <- substr(TN$code, 4, 7)
+TN$sample[grep("Pony", TN$sample)] <- "Pony"
+TN <- droplevels(TN)
+plot(TN$conc ~ TN$sample, ylim = c(0,0.75))
+
+# Total Phosphorus
+TP2011 <- read.delim("../data/2011TP_data.txt")
+TP2012 <- read.delim("../data/2012TP_data.txt")
+TP2011$year <- rep("2011", dim(TP2011)[1])
+TP2012$year <- rep("2012", dim(TP2012)[1])
+TP <- rbind(TP2011, TP2012)
+TP <- TP[grep("*iltered", TP$Sample), ]
+colnames(TP) <- c("sample", "conc", "LCL", "UCL", "se")
+TP$code <- TP$sample
+TDP <- TP[grep("*Filtered", TP$sample), ]
+TP <- TP[grep("*Unfiltered", TP$sample), ]
+TP$sample <- gsub(" Unfiltered", "", TP$sample)
+TDP$sample <- gsub(" Filtered", "", TDP$sample)
+TP[6, ] <- TDP[6, ]
+TP <- TP[-c(which(TP$sample == "CanyonHypo" | TP$sample == "CanyonChemo")), ]
+TP$sample[grep("Pony", TP$sample)] <- "Pony"
+TP$sample <- gsub("CanyonEpi", "Canyon", TP$sample)
+TP$sample <- as.factor(TP$sample)
+TP <- droplevels(TP)
+plot(TP$sample, TP$conc)
+
+nuts <- 
+```
+
+
+# Patterns of Bacterial Diversity
+```{r}
+
+
+
+
+
+```
+
+
+
+
+# Patterns of Resource Diversity
+
+
+
+# Study System Map
