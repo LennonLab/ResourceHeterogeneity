@@ -17,6 +17,8 @@ Contributions of Resource Concentration and Heterogeneity to Microbial Diversity
 rm(list=ls())
 getwd()
 setwd("~/GitHub/ResourceHeterogeneity/analyses")
+source("../bin/MothurTools.R")
+se <- function(x, ...){sd(x, na.rm = TRUE)/sqrt(length(na.omit(x)))}
 opar <- par(no.readonly = TRUE)  # Saves plot defaults
 ```
 
@@ -36,7 +38,7 @@ DOC$sample <- DOCkey$Site[match(DOCkey$Sample.Name, DOC$code)]
 DOC$year <- substr(DOC$code, 4, 7)
 DOC$sample[grep("Pony", DOC$sample)] <- "Pony"
 DOC <- droplevels(DOC)
-plot(log(DOC$conc) ~ DOC$sample)
+DOC$conc <- pmax(DOC$conc, 0)
 
 # Total Nitrogen
 TN2011 <- read.delim("../data/2011TN_data.txt", header=T)
@@ -51,7 +53,7 @@ TN$sample <- TNkey$Site[match(TNkey$Sample.Name, TN$code)]
 TN$year <- substr(TN$code, 4, 7)
 TN$sample[grep("Pony", TN$sample)] <- "Pony"
 TN <- droplevels(TN)
-plot(TN$conc ~ TN$sample, ylim = c(0,0.75))
+TN$conc <- pmax(TN$conc, 0)
 
 # Total Phosphorus
 TP2011 <- read.delim("../data/2011TP_data.txt")
@@ -72,26 +74,396 @@ TP$sample[grep("Pony", TP$sample)] <- "Pony"
 TP$sample <- gsub("CanyonEpi", "Canyon", TP$sample)
 TP$sample <- as.factor(TP$sample)
 TP <- droplevels(TP)
-plot(TP$sample, TP$conc)
-
-nuts <- 
+TP$conc <- pmax(TP$conc, 0)
 ```
+
+## Save Data Table
+```{r}
+
+```
+
+## Lake Nutrient Figure
+```{r}
+
+par(mfrow = c(1,1), mar = c(0, 4, 0, 1) + 0.5, oma = c(3, 0, 0, 0) + 0.5)
+layout(rbind(1, 2, 3), height = c(3, 3, 3)) 
+
+plot(DOC$conc ~ DOC$sample, las = 1, ces = 1.5,
+     xlab = "Lake", ylab = "DOC (mg C/L)", xaxt="n")
+
+plot(TN$conc ~ TN$sample, ylim = c(0,0.75), las = 1, cex=1.5,
+     xlab = "Lake", ylab = "Total Nitrogen (mg N/L)",xaxt="n")
+
+plot(TP$sample, TP$conc, las = 1, cex= 1.5,
+     xlab = "Lake", ylab = "Total Phosphorus (ug P/L)")
+
+```
+
+# Chlorophyll A and Bacterial Respiration
 
 
 # Patterns of Bacterial Diversity
+
+## Import Raw Data
+```{r}
+# Define Inputs
+# Design = general design file for experiment
+# shared = OTU table from mothur with sequence similarity clustering
+# Taxonomy = Taxonomic information for each OTU
+design <- "../data/design.txt"
+shared <- "../data/HMWF.bac.final.shared"
+taxon  <- "../data/HMWF.bac.final.0.03.taxonomy"
+
+# Import Design
+design <- read.delim(design, header=T, row.names=1)
+
+# Import Shared Files
+OTUs.in <- read.otu(shared = shared, cutoff = "0.03")    # 97% Similarity
+
+# Import Taxonomy
+OTU.tax <- read.tax(taxonomy = taxon, format = "rdp")
+```
+
+## Data Transformations
 ```{r}
 
+# Remove Unwanted Sites
+
+OTUs.hmwf <- OTUs.in[-c(which(design$Lake %in% c("blank", "CanyonChemo", 
+                          "CanyonHypo", "CanyonI", "CanyonII",
+                          "CanyonIII", "CanyonIV"))), ]
+
+design <- design[-c(which(design$Lake %in% c("blank", "CanyonChemo", 
+                          "CanyonHypo", "CanyonI", "CanyonII",
+                          "CanyonIII", "CanyonIV"))), ]
+
+# Remove OTUs with less than two occurences across all sites
+OTUs <- OTUs.hmwf[, which(colSums(OTUs.hmwf) >= 2)]
+
+# Sequencing Coverage
+coverage <- rowSums(OTUs)
+
+# Good's Coverage
+goods <- function(x = ""){
+  1 - (sum(x == 1) / rowSums(x))
+}
+goods.c <- goods(OTUs)
+
+# # Remove Low Coverage Samples (This code removes two sites: Site 5DNA, Site 6cDNA)
+# lows <- which(coverage < 10000)
+# OTUs <- OTUs[-which(coverage < 10000), ]
+# design <- design[-which(coverage < 10000), ]
+
+# Make Relative Abundence Matrices
+OTUsREL <- OTUs
+for(i in 1:dim(OTUs)[1]){
+  OTUsREL[i,] <- OTUs[i,]/sum(OTUs[i,])
+}
+require(vegan)
+
+# Log Transform Relative Abundances
+OTUsREL.log <- decostand(OTUs, method="log")
+```
+
+## Calculate Alpha Diversity
+```{r}
+# Observed Richness
+S.obs <- rowSums((OTUs > 0) * 1)
+
+# Simpson's Evenness
+SimpE <- function(x = ""){
+  x <- as.data.frame(x)
+  D <- diversity(x, "inv")
+  S <- sum((x > 0) * 1) 
+  E <- (D)/S 
+  return(E)
+}
+simpsE <- round(apply(OTUs, 1, SimpE), 3)
+
+# Shannon's Diversity
+H <- function(x = ""){
+  x <- x[x>0]
+  H = 0
+  for (n_i in x){
+    p = n_i / sum(x)
+    H = H - p*log(p) 
+  }
+  return(H)
+}
+
+shan <- round(apply(OTUs, 1, H), 2)
+shan2 <- diversity(OTUs, index = "shannon")
+
+design <- droplevels(design)
+
+alpha.div <- cbind(design, S.obs, simpsE, shan)
+
+par(mfrow = c(1,1), mar = c(0, 4, 0, 1) + 0.5, oma = c(3, 0, 0, 0) + 0.5)
+layout(rbind(1, 2), height = c(3, 3)) 
+
+plot(alpha.div$S.obs ~ alpha.div$Lake, las = 1, ces = 1.5,
+     xlab = "Lake", ylab = "Richness", xaxt="n")
+
+plot(alpha.div$simpsE ~ alpha.div$Lake, las = 1, cex=1.5,
+     xlab = "Lake", ylab = "Simpson's Evenness")
 
 
+```
+
+## Calculate and Visualize Beta Diversity
+```{r}
+beta.w <- function(site1 = "", site2 = ""){
+  site1 = subset(site1, select = site1 > 0)               # Removes absences
+  site2 = subset(site2, select = site2 > 0)               # Removes absences
+  gamma = union(colnames(site1), colnames(site2))         # Gamma species pool
+  s     = length(gamma)                                   # Gamma richness
+  a.bar = mean(c(specnumber(site1), specnumber(site2)))   # Mean sample richness
+  b.w   = round(s/a.bar - 1, 3)
+  return(b.w)
+}
+
+# Calculate Bray-Curtis 
+hmwf.db <- vegdist(OTUsREL, method = "bray")
+```
+
+## Principal Coordinates Analysis
+```{r}
+hmwf.pcoa <- cmdscale(hmwf.db, eig = TRUE, k = 3) 
+explainvar1 <- round(hmwf.pcoa$eig[1] / sum(hmwf.pcoa$eig), 3) * 100
+explainvar2 <- round(hmwf.pcoa$eig[2] / sum(hmwf.pcoa$eig), 3) * 100
+explainvar3 <- round(hmwf.pcoa$eig[3] / sum(hmwf.pcoa$eig), 3) * 100
+sum.eig <- sum(explainvar1, explainvar2, explainvar3)
+
+# Define Plot Parameters
+par(mar = c(5, 5, 1, 2) + 0.1)
+
+# Plot Eigenvalues
+plot(hmwf.pcoa$eig, xlab = "PCoA Axis", ylab = "Eigenvalue", 
+     las = 1, cex.lab = 1.5, pch = 16)
+
+# Add Expectation based on Kaiser-Guttman criterion and Broken Stick Model
+abline(h = mean(hmwf.pcoa$eig), lty = 2, lwd = 2, col = "blue")
+b.stick <- bstick(42, sum(hmwf.pcoa$eig))
+lines(1:42, b.stick, type = "l", lty = 4, lwd = 2, col = "red")
+
+# Add Legend
+legend("topright", legend = c("Avg Eigenvalue", "Broken-Stick"), 
+       lty = c(2, 4), bty = "n", col = c("blue", "red"))
+```
+
+## Ordination Figure
+```{r}
+# Define Plot Parameters
+par(mar = c(5, 5, 1, 2) + 0.1)
+
+# Initiate Plot
+plot(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2], ylim = c(-0.3, 0.4),
+     xlim = c(-0.3, 0.6), 
+     xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
+
+# Add Axes
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+# Add Points & Labels
+points(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2],
+       pch = 19, cex = 3, bg = "gray", col = "gray")
+
+ordihull(cbind(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2]),
+    alpha.div$Molecule, kind="se", conf=0.95,
+    lwd=2, draw = "polygon", col="gray", border = "black", label=TRUE, cex=1)
+```
+
+## Statistical Analyses
+
+What are the differences between lakes and does resource concentration explain differences
+
+```{r}
+
+adonis(OTUsREL.log ~ design$Lake * design$Molecule, method = "bray", permutations = 999)
+
+```
+
+
+# Patterns of Resource Diversity
+```{r}
+# Define Inputs
+# Resource = raw site-by-resource matrix
+resource.pos <- "../data/SpecAbundAvePos.csv"
+resource.neg <- "../data/SpecAbundAveNeg.csv"
+
+# Import Resources
+res.in <- read.csv(resource.pos, header=T, row.names=1)
+
+rownames(res.in)
+rownames(res.in) <- c("Ann", "blank", "CanyonChemo", "Canyon", "CanyonHypo",
+                      "CanyonI", "CanyonII", "CanyonIII", "CanyonIV", "Howe",
+                      "Ives", "Jordan", "Lily", "Mountain", "Pony", "Rush",
+                      "SecondPine", "UpperPine")
+
+blank <- unlist(res.in["blank", ])
+res.hmwf <- res.in[-c(which(rownames(res.in) %in% c("blank", "CanyonChemo", 
+                          "CanyonHypo", "CanyonI", "CanyonII",
+                          "CanyonIII", "CanyonIV", "Jordan"))), ]
+```
+
+## Remove Major Peaks from Blanks
+```{r}
+summary(blank)
+blank[which(blank > 2 * sd(blank))]
+
+res.hmwf <- res.hmwf[, -c(which(blank > 2 * sd(blank)))]
+
+# What other peaks should be removed
+```
+
+## Data Transformations
+```{r}
+# Remove OTUs with less than two occurences across all sites
+res <- res.hmwf
+
+# Sequencing Coverage
+coverage <- rowSums(res)
+
+# Good's Coverage
+goods <- function(x = ""){
+  1 - (sum(x == 1) / rowSums(x))
+}
+goods.c <- goods(res)
+
+# # Remove Low Coverage Samples (This code removes two sites: Site 5DNA, Site 6cDNA)
+# lows <- which(coverage < 10000)
+# OTUs <- OTUs[-which(coverage < 10000), ]
+# design <- design[-which(coverage < 10000), ]
+
+# Make Relative Abundence Matrices
+resREL <- res
+for(i in 1:dim(res)[1]){
+  resREL[i,] <- res[i,]/sum(res[i,])
+}
+
+```
+
+## Calculate Alpha Diversity
+```{r}
+# Observed Richness
+S.res <- rowSums((res > 0) * 1)
+
+# Simpson's Evenness
+res.simpsE <- round(apply(res, 1, SimpE), 3)
+
+# Shannon's Diversity
+res.shan <- round(apply(res, 1, H), 2)
+res.shan2 <- diversity(res, index = "shannon")
+
+res.div <- as.data.frame(cbind(S.res, res.simpsE, res.shan))
+```
+
+```{r}
+par(mfrow = c(1,1), mar = c(0, 4, 0, 1) + 0.5, oma = c(3, 0, 0, 0) + 0.5)
+layout(rbind(1, 2), height = c(3, 3)) 
+
+plot(res.div$res.simpsE, alpha.div$simpsE, las = 1, cex = 1.5,
+     xlab = "Lake", ylab = "Simpson's Evenness", xaxt="n")
+
+plot(res.div$res.shan ~ alpha.div$Lake, las = 1, cex=1.5,
+     xlab = "Lake", ylab = "Shannon Diversity")
+
+res.div
+
+
+res.div$DOC <- aggregate(DOC$conc, list(DOC$sample), mean)$x
+res.div$TN <- aggregate(TN$conc, list(TN$sample), mean)$x
+res.div$TP <- aggregate(TP$conc, list(TP$sample), mean)$x
+
+plot(res.div$DO ~ res.div$res.simpsE)
+
+
+```
+
+## Between site comparisions of resources
+```{r}
+# Calculate Bray-Curtis 
+res.db <- vegdist(resREL, method = "bray")
+
+```
+
+
+```{r}
+
+res.pcoa <- cmdscale(res.db, eig = TRUE, k = 3) 
+explainvar1 <- round(res.pcoa$eig[1] / sum(res.pcoa$eig), 3) * 100
+explainvar2 <- round(res.pcoa$eig[2] / sum(res.pcoa$eig), 3) * 100
+explainvar3 <- round(res.pcoa$eig[3] / sum(res.pcoa$eig), 3) * 100
+sum.eig <- sum(explainvar1, explainvar2, explainvar3)
+
+# Define Plot Parameters
+par(mar = c(5, 5, 1, 2) + 0.1)
+
+# Plot Eigenvalues
+plot(res.pcoa$eig, xlab = "PCoA Axis", ylab = "Eigenvalue", 
+     las = 1, cex.lab = 1.5, pch = 16)
+
+# Add Expectation based on Kaiser-Guttman criterion and Broken Stick Model
+abline(h = mean(res.pcoa$eig), lty = 2, lwd = 2, col = "blue")
+b.stick <- bstick(10, sum(res.pcoa$eig))
+lines(1:10, b.stick, type = "l", lty = 4, lwd = 2, col = "red")
+
+# Add Legend
+legend("topright", legend = c("Avg Eigenvalue", "Broken-Stick"), 
+       lty = c(2, 4), bty = "n", col = c("blue", "red"))
 
 
 ```
 
 
+## Resource Difference Plots
+```{r}
+# Define Plot Parameters
+par(mar = c(5, 5, 1, 2) + 0.1)
+
+# Initiate Plot
+plot(res.pcoa$points[ ,1], res.pcoa$points[ ,2], ylim = c(-0.1, 0.1),
+     xlim = c(-0.15, 0.1), 
+     xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
+
+# Add Axes
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+# Add Points & Labels
+points(res.pcoa$points[ ,1], res.pcoa$points[ ,2],
+       pch = 19, cex = 3, bg = "gray", col = "gray")
+text(res.pcoa$points[ ,1], res.pcoa$points[ ,2], 
+     labels = row.names(res.pcoa$points))
+
+```
 
 
-# Patterns of Resource Diversity
+## Resource Explainations of Differences
+```{r}
+
+otu.rda <- OTUsREL.log[which(design$Year == "2012" & design$Molecule == "RNA"), ]
+rownames(otu.rda) <- design$Lake[which(design$Year == "2012" & design$Molecule == "RNA")]
 
 
 
-# Study System Map
+otu.rda.db <- vegdist(otu.rda, "bray")
+
+test <- rda(otu.rda.db, res.div[, 4:6], res.db)
+
+mantel(otu.rda.db, res.db)
+
+```
+
+
+
+# Microbial Functional Groups
