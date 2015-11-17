@@ -1,5 +1,5 @@
 ---
-title: "Reservoir Gradient"
+title: "Resource Heterogeneity Structures Microbial Communities"
 author: "Mario E. Muscarella"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 header-includes:
@@ -10,17 +10,36 @@ output:
     fig_caption: true
 ---
 
-Contributions of Resource Concentration and Heterogeneity to Microbial Diversity and Function
+# Introduction
+Much is already know about how spatial gradients in resource availability contribution to the structure and fucntion of microbial communities.
+However, we are begining to appreciate the molecular diversity within the resource pool.
+In this study, we explore how both the concentration and diversity of resources contribute to the structure and function of aquatic microbial communities. 
 
 # Initial Setup
 ```{r results='hide', message=FALSE}
 rm(list=ls())
 getwd()
 setwd("~/GitHub/ResourceHeterogeneity/analyses")
+
+# Import Tools and Standard Functions
 source("../bin/MothurTools.R")
 se <- function(x, ...){sd(x, na.rm = TRUE)/sqrt(length(na.omit(x)))}
+
+# Save Standard Plot Settings
 opar <- par(no.readonly = TRUE)  # Saves plot defaults
+
+# Load Required Packages
+require("png")
+require("grid")
+require("vegan")
 ```
+
+# Supplemental Figure 1: Study System Map
+We sampled 10 lakes in the Huron Mountains of Michigan. 
+The Huron Mountains are located in the Superior Bedrock Uplands region of the Michigan Upper Peninsula (Schaetzl et al 2013).
+The region is classified as ....
+The forests around the lakes are ....
+The wetershed is ....
 
 # Lake Nutrient Concentrations
 ```{r}
@@ -35,11 +54,11 @@ DOC$code <- DOC$sample
 DOC <- DOC[which(DOC$code %in% DOCkey$Sample.Name), ]
 DOC$sample <- DOCkey$Site[match(DOCkey$Sample.Name, DOC$code)]
 DOC$year <- substr(DOC$code, 4, 7)
-
-DOC <- droplevels(DOC)
 DOC$conc <- pmax(DOC$conc, 0)
-DOC2 <- data.frame("sample" = DOC$sample, "year" = DOC$year, "conc" =  DOC$conc)[order(DOC$sample, DOC$year), ]
+DOC2 <- data.frame("sample" = DOC$sample, "year" = DOC$year, 
+                   "conc" =  DOC$conc)[order(DOC$sample, DOC$year), ]
 DOC$sample[grep("Pony", DOC$sample)] <- "Pony"
+DOC <- droplevels(DOC)
 
 # Total Nitrogen
 TN2011 <- read.delim("../data/2011TN_data.txt", header=T)
@@ -52,11 +71,11 @@ TN$code <- TN$sample
 TN <- TN[which(TN$code %in% TNkey$Sample.Name), ]
 TN$sample <- TNkey$Site[match(TNkey$Sample.Name, TN$code)]
 TN$year <- substr(TN$code, 4, 7)
-
-TN <- droplevels(TN)
 TN$conc <- pmax(TN$conc, 0)
-TN2 <- data.frame("sample" = TN$sample, "year" = TN$year, "conc" = TN$conc)[order(TN$sample, TN$year), ]
+TN2 <- data.frame("sample" = TN$sample, "year" = TN$year, 
+                  "conc" = TN$conc)[order(TN$sample, TN$year), ]
 TN$sample[grep("Pony", TN$sample)] <- "Pony"
+TN <- droplevels(TN)
 
 # Total Phosphorus
 TP2011 <- read.delim("../data/2011TP_data.txt")
@@ -73,13 +92,13 @@ TP$sample <- gsub(" Unfiltered", "", TP$sample)
 TDP$sample <- gsub(" Filtered", "", TDP$sample)
 TP[6, ] <- TDP[6, ]
 TP <- TP[-c(which(TP$sample == "CanyonHypo" | TP$sample == "CanyonChemo")), ]
-
 TP$sample <- gsub("CanyonEpi", "Canyon", TP$sample)
 TP$sample <- as.factor(TP$sample)
-TP <- droplevels(TP)
 TP$conc <- pmax(TP$conc, 0)
-TP2 <- data.frame("sample" = TP$sample, "year" = TP$year, "conc" = TP$conc)[order(TP$sample, TP$year), ]
+TP2 <- data.frame("sample" = TP$sample, "year" = TP$year, 
+                  "conc" = TP$conc)[order(TP$sample, TP$year), ]
 TP$sample[grep("Pony", TP$sample)] <- "Pony"
+TP <- droplevels(TP)
 ```
 
 ## Save Data Table
@@ -88,29 +107,82 @@ DOC2 <- aggregate(conc ~ sample + year, DOC2, mean)
 TN2 <- aggregate(conc ~ sample + year, TN2, mean)
 TP2 <- aggregate(conc ~ sample + year, TP2, mean)
 
-
 nuts <- data.frame("sample" = DOC2$sample, "year" = DOC2$year, 
               "DOC" = DOC2$conc, "TP" = TP2$conc, "TN" = TN2$conc)
 
-
 nuts$sample[grep("Pony", nuts$sample)] <- "Pony"
+nuts <- droplevels(nuts)
 ```
 
 ## Figure 1: Lake Nutrients
-```{r}
-
-par(mfrow = c(1,1), mar = c(0, 4, 0, 1) + 0.5, oma = c(3, 0, 0, 0) + 0.5)
+```{r results='hide'}
+png(filename="../figures/Figure1.png",
+    width = 1600, height =1200, res = 96*2)
+par(opar)
+par(mfrow = c(1,1), mar = c(0, 6, 0, 0) + 0.5, oma = c(4, 0, 1, 1) + 0.5)
 layout(rbind(1, 2, 3), height = c(3, 3, 3)) 
 
-plot(DOC$conc ~ DOC$sample, las = 1, ces = 1.5,
-     xlab = "Lake", ylab = "DOC (mg C/L)", xaxt="n")
+labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
+         "Second\nPine","Upper\nPine")
 
-plot(TN$conc ~ TN$sample, ylim = c(0,0.75), las = 1, cex=1.5,
-     xlab = "Lake", ylab = "Total Nitrogen (mg N/L)",xaxt="n")
+# DOC Plot
+plot(DOC$conc ~ DOC$sample, ylim = c(0, 35), las = 1, 
+     xaxt="n", xlab = "", yaxt="n", ylab = "")
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1.2, las = 1, 
+     at = c(0, 10, 20, 30))
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 10, 20, 30))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0, 10, 20, 30))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 10, 20, 30))
+mtext(side = 2, expression(paste("DOC (mg C L" ^-1, ")", sep="")), line = 3.5, cex = 1)
+legend("topleft", "A", bty = "n", x.intersp = 0, cex = 1.25)
+box(lwd = 2)
 
-plot(TP$sample, TP$conc, las = 1, cex= 1.5,
-     xlab = "Lake", ylab = "Total Phosphorus (ug P/L)")
+# Total Nitrogen Plot
+plot(TN$conc ~ TN$sample, ylim = c(0,0.65), las = 1, 
+     xaxt="n", xlab = "", yaxt="n", ylab = "")
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1.2, las = 1, 
+     at = c(0.0, 0.2, 0.4, 0.6))
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0.0, 0.2, 0.4, 0.6))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0.0, 0.2, 0.4, 0.6))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0.0, 0.2, 0.4, 0.6))
+mtext(side = 2, expression(paste("TN (mg N L" ^-1, ")")), line = 3.5, cex = 1)
+legend("topleft", "B", bty = "n", x.intersp = 0, cex = 1.25)
+box(lwd = 2)
 
+# Total Phosphorus Plot                       
+plot(TP$sample, TP$conc, ylim = c(0,50), las = 1, 
+     xaxt="n", xlab = "", yaxt="n", ylab = "")
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1.2, las = 1, 
+     at = c(0, 20, 40))
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 20, 40))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0, 20, 40))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 20, 40))
+mtext(side = 2, expression(paste("TP (",mu, "g P L" ^-1, ")")), line = 3.5, cex = 1)
+mtext(side = 1, text = labs, line = 1, at = seq(1:10), padj = 0.5, cex = 0.8)
+legend("topleft", "C", bty = "n", x.intersp = 0, cex = 1.25)
+box(lwd = 2)
+
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+par(opar)
+```
+
+```{r fig.width=6, fig.height=5,echo=FALSE,fig.cap="Lake Nutrients"}
+img <- readPNG("../figures/Figure1.png")
+grid.raster(img)
 ```
 
 # Chlorophyll A and Bacterial Respiration
@@ -131,7 +203,7 @@ shared <- "../data/HMWF.bac.final.shared"
 taxon  <- "../data/HMWF.bac.final.0.03.taxonomy"
 
 # Import Design
-design <- read.delim(design.in, header=T, row.names=1)
+design.raw <- read.delim(design.in, header=T, row.names=1)
 
 # Import Shared Files
 OTUs.in <- read.otu(shared = shared, cutoff = "0.03")    # 97% Similarity
@@ -145,14 +217,14 @@ OTU.tax <- read.tax(taxonomy = taxon, format = "rdp")
 # Remove Unwanted Sites
 OTUs.hmwf <- OTUs.in[-c(7, 8 , 11, 12), ]
 
-design <- design[-c(7, 8 , 11, 12) , ]
+design <- design.raw[-c(7, 8 , 11, 12) , ]
 
 # Reorder Site
 OTUs.hmwf <- OTUs.hmwf[c(rownames(OTUs.hmwf) %in% rownames(design)), ]
 
 
 # Remove OTUs with less than two occurences across all sites
-OTUs <- OTUs.hmwf[, which(colSums(OTUs.hmwf) == "NA")  >= 2)]
+OTUs <- OTUs.hmwf[, colSums((OTUs.hmwf > 0) * 1)  >= 2 | colSums(OTUs.hmwf >= 10)]
 
 # Sequencing Coverage
 coverage <- rowSums(OTUs)
@@ -213,20 +285,54 @@ alpha.div <- alpha.div[order(alpha.div$Lake, alpha.div$Year, alpha.div$Molecule)
 ```
 
 ## Figure 3: Lake Alpha Diversity
-```{r}
-
-par(mfrow = c(1,1), mar = c(0, 4, 0, 1) + 0.5, oma = c(3, 0, 0, 0) + 0.5)
+```{r results='hide'}
+png(filename="../figures/Figure3.png",
+    width = 1600, height = 1100, res = 96*2)
+par(opar)
+par(mfrow = c(1,1), mar = c(0, 6, 0, 0) + 0.5, oma = c(3, 0, 1, 1) + 0.5)
 layout(rbind(1, 2), height = c(3, 3)) 
 
-plot(alpha.div$S.obs ~ alpha.div$Lake, las = 1, ces = 1.5,
-     xlab = "Lake", ylab = "Richness", xaxt="n")
+plot(alpha.div$S.obs ~ alpha.div$Lake,  ylim = c(0,7000), las = 1, 
+     xaxt="n", xlab = "", yaxt="n", ylab = "")
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1, las = 1, 
+     at = c(1000, 3000, 5000, 7000))
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1000, 3000, 5000, 7000))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1000, 3000, 5000, 7000))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1000, 3000, 5000, 7000))
+mtext(side = 2, "Richness (S)", line = 4, cex = 1)
+legend("topleft", "A", bty = "n", x.intersp = 0, cex = 1.25)
+box(lwd = 2)
 
-plot(alpha.div$simpsE ~ alpha.div$Lake, las = 1, cex=1.5,
-     xlab = "Lake", ylab = "Simpson's Evenness")
+plot(alpha.div$simpsE ~ alpha.div$Lake, ylim = c(0,0.06), las = 1, 
+     xaxt="n", xlab = "", yaxt="n", ylab = "")
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1, las = 1, 
+     at = c(0, 0.02, 0.04, 0.06))
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 0.02, 0.04, 0.06))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0, 0.02, 0.04, 0.06))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 0.02, 0.04, 0.06))
+mtext(side = 2, "Simpson's Eveness (E)", line = 4, cex = 1)
+mtext(side = 1, text = labs, line = 0.5, at = seq(1:10), padj = 0.5, cex = 0.8)
+legend("topleft", "B", bty = "n", x.intersp = 0, cex = 1.25)
+box(lwd = 2)
 
-
-
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+par(opar)
 ```
+
+```{r fig.width=6, fig.height=4,echo=FALSE,fig.cap="Lake Nutrients"}
+img <- readPNG("../figures/Figure3.png")
+grid.raster(img)
+```
+
 
 ## Calculate and Visualize Beta Diversity
 ```{r}
