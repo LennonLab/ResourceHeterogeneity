@@ -23,7 +23,6 @@ opar <- par(no.readonly = TRUE)  # Saves plot defaults
 ```
 
 # Lake Nutrient Concentrations
-
 ```{r}
 # DOC
 DOC2011 <- read.delim("../data/2011DOC_data.txt", header=T)
@@ -36,9 +35,11 @@ DOC$code <- DOC$sample
 DOC <- DOC[which(DOC$code %in% DOCkey$Sample.Name), ]
 DOC$sample <- DOCkey$Site[match(DOCkey$Sample.Name, DOC$code)]
 DOC$year <- substr(DOC$code, 4, 7)
-DOC$sample[grep("Pony", DOC$sample)] <- "Pony"
+
 DOC <- droplevels(DOC)
 DOC$conc <- pmax(DOC$conc, 0)
+DOC2 <- data.frame("sample" = DOC$sample, "year" = DOC$year, "conc" =  DOC$conc)[order(DOC$sample, DOC$year), ]
+DOC$sample[grep("Pony", DOC$sample)] <- "Pony"
 
 # Total Nitrogen
 TN2011 <- read.delim("../data/2011TN_data.txt", header=T)
@@ -51,9 +52,11 @@ TN$code <- TN$sample
 TN <- TN[which(TN$code %in% TNkey$Sample.Name), ]
 TN$sample <- TNkey$Site[match(TNkey$Sample.Name, TN$code)]
 TN$year <- substr(TN$code, 4, 7)
-TN$sample[grep("Pony", TN$sample)] <- "Pony"
+
 TN <- droplevels(TN)
 TN$conc <- pmax(TN$conc, 0)
+TN2 <- data.frame("sample" = TN$sample, "year" = TN$year, "conc" = TN$conc)[order(TN$sample, TN$year), ]
+TN$sample[grep("Pony", TN$sample)] <- "Pony"
 
 # Total Phosphorus
 TP2011 <- read.delim("../data/2011TP_data.txt")
@@ -62,7 +65,7 @@ TP2011$year <- rep("2011", dim(TP2011)[1])
 TP2012$year <- rep("2012", dim(TP2012)[1])
 TP <- rbind(TP2011, TP2012)
 TP <- TP[grep("*iltered", TP$Sample), ]
-colnames(TP) <- c("sample", "conc", "LCL", "UCL", "se")
+colnames(TP) <- c("sample", "conc", "LCL", "UCL", "se", "year")
 TP$code <- TP$sample
 TDP <- TP[grep("*Filtered", TP$sample), ]
 TP <- TP[grep("*Unfiltered", TP$sample), ]
@@ -70,19 +73,30 @@ TP$sample <- gsub(" Unfiltered", "", TP$sample)
 TDP$sample <- gsub(" Filtered", "", TDP$sample)
 TP[6, ] <- TDP[6, ]
 TP <- TP[-c(which(TP$sample == "CanyonHypo" | TP$sample == "CanyonChemo")), ]
-TP$sample[grep("Pony", TP$sample)] <- "Pony"
+
 TP$sample <- gsub("CanyonEpi", "Canyon", TP$sample)
 TP$sample <- as.factor(TP$sample)
 TP <- droplevels(TP)
 TP$conc <- pmax(TP$conc, 0)
+TP2 <- data.frame("sample" = TP$sample, "year" = TP$year, "conc" = TP$conc)[order(TP$sample, TP$year), ]
+TP$sample[grep("Pony", TP$sample)] <- "Pony"
 ```
 
 ## Save Data Table
 ```{r}
+DOC2 <- aggregate(conc ~ sample + year, DOC2, mean)
+TN2 <- aggregate(conc ~ sample + year, TN2, mean)
+TP2 <- aggregate(conc ~ sample + year, TP2, mean)
 
+
+nuts <- data.frame("sample" = DOC2$sample, "year" = DOC2$year, 
+              "DOC" = DOC2$conc, "TP" = TP2$conc, "TN" = TN2$conc)
+
+
+nuts$sample[grep("Pony", nuts$sample)] <- "Pony"
 ```
 
-## Lake Nutrient Figure
+## Figure 1: Lake Nutrients
 ```{r}
 
 par(mfrow = c(1,1), mar = c(0, 4, 0, 1) + 0.5, oma = c(3, 0, 0, 0) + 0.5)
@@ -101,6 +115,8 @@ plot(TP$sample, TP$conc, las = 1, cex= 1.5,
 
 # Chlorophyll A and Bacterial Respiration
 
+## Figure 2: Chlorophyll A and BR
+
 
 # Patterns of Bacterial Diversity
 
@@ -110,12 +126,12 @@ plot(TP$sample, TP$conc, las = 1, cex= 1.5,
 # Design = general design file for experiment
 # shared = OTU table from mothur with sequence similarity clustering
 # Taxonomy = Taxonomic information for each OTU
-design <- "../data/design.txt"
+design.in <- "../data/design.txt"
 shared <- "../data/HMWF.bac.final.shared"
 taxon  <- "../data/HMWF.bac.final.0.03.taxonomy"
 
 # Import Design
-design <- read.delim(design, header=T, row.names=1)
+design <- read.delim(design.in, header=T, row.names=1)
 
 # Import Shared Files
 OTUs.in <- read.otu(shared = shared, cutoff = "0.03")    # 97% Similarity
@@ -126,19 +142,17 @@ OTU.tax <- read.tax(taxonomy = taxon, format = "rdp")
 
 ## Data Transformations
 ```{r}
-
 # Remove Unwanted Sites
+OTUs.hmwf <- OTUs.in[-c(7, 8 , 11, 12), ]
 
-OTUs.hmwf <- OTUs.in[-c(which(design$Lake %in% c("blank", "CanyonChemo", 
-                          "CanyonHypo", "CanyonI", "CanyonII",
-                          "CanyonIII", "CanyonIV"))), ]
+design <- design[-c(7, 8 , 11, 12) , ]
 
-design <- design[-c(which(design$Lake %in% c("blank", "CanyonChemo", 
-                          "CanyonHypo", "CanyonI", "CanyonII",
-                          "CanyonIII", "CanyonIV"))), ]
+# Reorder Site
+OTUs.hmwf <- OTUs.hmwf[c(rownames(OTUs.hmwf) %in% rownames(design)), ]
+
 
 # Remove OTUs with less than two occurences across all sites
-OTUs <- OTUs.hmwf[, which(colSums(OTUs.hmwf) >= 2)]
+OTUs <- OTUs.hmwf[, which(colSums(OTUs.hmwf) == "NA")  >= 2)]
 
 # Sequencing Coverage
 coverage <- rowSums(OTUs)
@@ -149,10 +163,8 @@ goods <- function(x = ""){
 }
 goods.c <- goods(OTUs)
 
-# # Remove Low Coverage Samples (This code removes two sites: Site 5DNA, Site 6cDNA)
-# lows <- which(coverage < 10000)
-# OTUs <- OTUs[-which(coverage < 10000), ]
-# design <- design[-which(coverage < 10000), ]
+# Make Presence Absence Matrix
+OTUsPA <- (OTUs > 0) * 1
 
 # Make Relative Abundence Matrices
 OTUsREL <- OTUs
@@ -197,6 +209,11 @@ shan2 <- diversity(OTUs, index = "shannon")
 design <- droplevels(design)
 
 alpha.div <- cbind(design, S.obs, simpsE, shan)
+alpha.div <- alpha.div[order(alpha.div$Lake, alpha.div$Year, alpha.div$Molecule), ]
+```
+
+## Figure 3: Lake Alpha Diversity
+```{r}
 
 par(mfrow = c(1,1), mar = c(0, 4, 0, 1) + 0.5, oma = c(3, 0, 0, 0) + 0.5)
 layout(rbind(1, 2), height = c(3, 3)) 
@@ -206,6 +223,7 @@ plot(alpha.div$S.obs ~ alpha.div$Lake, las = 1, ces = 1.5,
 
 plot(alpha.div$simpsE ~ alpha.div$Lake, las = 1, cex=1.5,
      xlab = "Lake", ylab = "Simpson's Evenness")
+
 
 
 ```
@@ -228,6 +246,7 @@ hmwf.db <- vegdist(OTUsREL, method = "bray")
 
 ## Principal Coordinates Analysis
 ```{r}
+par(opar)
 hmwf.pcoa <- cmdscale(hmwf.db, eig = TRUE, k = 3) 
 explainvar1 <- round(hmwf.pcoa$eig[1] / sum(hmwf.pcoa$eig), 3) * 100
 explainvar2 <- round(hmwf.pcoa$eig[2] / sum(hmwf.pcoa$eig), 3) * 100
@@ -274,7 +293,7 @@ points(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2],
        pch = 19, cex = 3, bg = "gray", col = "gray")
 
 ordihull(cbind(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2]),
-    alpha.div$Molecule, kind="se", conf=0.95,
+    paste(design$Lake, design$Year), kind="se", conf=0.95,
     lwd=2, draw = "polygon", col="gray", border = "black", label=TRUE, cex=1)
 ```
 
@@ -283,9 +302,28 @@ ordihull(cbind(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2]),
 What are the differences between lakes and does resource concentration explain differences
 
 ```{r}
+nuts
+nuts2 <- nuts[rep(seq_len(nrow(nuts)), each=2),]
+nuts2$molecule <- rep(c("DNA", "RNA"), 21)
+nuts2 <- nuts2[order(nuts2$sample, nuts2$year, nuts2$molecule), ]
+as.character(nuts2$sample) == as.character(design$Lake)
 
-adonis(OTUsREL.log ~ design$Lake * design$Molecule, method = "bray", permutations = 999)
+beta.dis <- betadisper(vegdist(OTUsREL, "bray"), design$Lake)
+permutest(beta.dis)
 
+adonis(OTUsREL ~ design$Lake + design$Molecule + design$Year, method = "bray", permutations = 999)
+
+interact.dbrda <- capscale(OTUsREL ~ nuts2$DOC * nuts2$TP * design$Molecule, add = T)
+anova(interact.dbrda)
+summary(interact.dbrda)
+RsquareAdj(interact.dbrda)
+```
+
+## Generalists
+```{r}
+length(colSums(OTUs) == 2)
+
+help
 ```
 
 
@@ -451,8 +489,8 @@ text(res.pcoa$points[ ,1], res.pcoa$points[ ,2],
 ## Resource Explainations of Differences
 ```{r}
 
-otu.rda <- OTUsREL.log[which(design$Year == "2012" & design$Molecule == "RNA"), ]
-rownames(otu.rda) <- design$Lake[which(design$Year == "2012" & design$Molecule == "RNA")]
+otu.rda <- OTUsREL.log[which(design$Year == "2012" & design$Molecule == "DNA"), ]
+rownames(otu.rda) <- design$Lake[which(design$Year == "2012" & design$Molecule == "DNA")]
 
 
 
@@ -464,6 +502,26 @@ mantel(otu.rda.db, res.db)
 
 ```
 
+# Phylogenetic Approach
 
+Resource distirubiton is not able to explain the distribution of all organisms combined. 
+But why should we expect this assumption?
+
+## Remove Cyanobacteria
+```{r}
+otu.tax
+
+
+
+```
 
 # Microbial Functional Groups
+
+Define RDP microbial groups
+Test each along with resource differences
+Who are the generalist taxa (which are active everywhere)
+Are generalists more abundant when resource concentration is higher?
+
+# Can we group resources
+What are the similar groups of resources: cluster resources based on abundance
+Can we cluster based on chemical data?

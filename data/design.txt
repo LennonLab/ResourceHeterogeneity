@@ -27,8 +27,10 @@ Mountain2011_DNA	Mountain	DNA	2011
 Mountain2011_RNA	Mountain	RNA	2011
 Mountain2012_DNA	Mountain	DNA	2012
 Mountain2012_RNA	Mountain	RNA	2012
-NorthPony2011_RNA	Pony	RNA	2011
 NorthPony2011_DNA	Pony	DNA	2011
+NorthPony2011_RNA	Pony	RNA	2011
+SouthPony2011_DNA	Pony	DNA	2011
+SouthPony2011_RNA	Pony	RNA	2011
 Pony2012_DNA	Pony	DNA	2012
 Pony2012_RNA	Pony	RNA	2012
 Rush2011_DNA	Rush	DNA	2011
@@ -39,8 +41,6 @@ SecondPine2011_DNA	SecondPine	DNA	2011
 SecondPine2011_RNA	SecondPine	RNA	2011
 SecondPine2012_DNA	SecondPine	DNA	2012
 SecondPine2012_RNA	SecondPine	RNA	2012
-SouthPony2011_DNA	Pony	DNA	2011
-SouthPony2011_RNA	Pony	RNA	2011
 UpperPine2011_DNA	UpperPine	DNA	2011
 UpperPine2011_RNA	UpperPine	RNA	2011
 UpperPine2012_DNA	UpperPine	DNA	2012
