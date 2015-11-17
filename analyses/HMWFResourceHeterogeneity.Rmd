@@ -398,8 +398,8 @@ box(lwd = 2)
 points(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2],
        pch = 19, cex = 3, bg = "gray", col = "gray")
 
-ordihull(cbind(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2]),
-    paste(design$Lake, design$Year), kind="se", conf=0.95,
+ordiellipse(cbind(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2]),
+    design$Lake, kind="se", conf=0.95,
     lwd=2, draw = "polygon", col="gray", border = "black", label=TRUE, cex=1)
 ```
 
