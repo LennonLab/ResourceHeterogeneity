@@ -1,25 +1,53 @@
-Key To DOC Samples
-
-Site          Sample Name
-Ives          MEM2011_001
-Ives          MEM2011_002
-Howe          MEM2011_003
-Howe          MEM2011_004
-Rush          MEM2011_005
-Rush          MEM2011_006
-N. Pony       MEM2011_007
-N. Pony       MEM2011_008
-S. Pony       MEM2011_009
-S. Pony       MEM2011_010
-Upper Pine    MEM2011_011
-Upper Pine    MEM2011_012
-Second Pine   MEM2011_013
-Second Pine   MEM2011_014
-Mountain      MEM2011_015
-Mointain      MEM2011_016
-Lily          MEM2011_017
-Lily          MEM2011_018
-Ann           MEM2011_019
-Ann           MEM2011_020
-Canyon        MEM2011_021
-Canyon        MEM2011_022
+Site	Sample Name
+Ives	MEM2011_001
+Ives	MEM2011_002
+Howe	MEM2011_003
+Howe	MEM2011_004
+Rush	MEM2011_005
+Rush	MEM2011_006
+Pony.N	MEM2011_007
+Pony.N	MEM2011_008
+Pony.S	MEM2011_009
+Pony.S	MEM2011_010
+UpperPine	MEM2011_011
+UpperPine	MEM2011_012
+SecondPine	MEM2011_013
+SecondPine	MEM2011_014
+Mountain	MEM2011_015
+Mointain	MEM2011_016
+Lily	MEM2011_017
+Lily	MEM2011_018
+Ann	MEM2011_019
+Ann	MEM2011_020
+Canyon	MEM2011_021
+Canyon	MEM2011_022
+Canyon	MEM2012_001
+Canyon	MEM2012_002
+CanyonHypo	MEM2012_003
+CanyonHypo	MEM2012_004
+CanyonChemo	MEM2012_005
+CanyonChemo	MEM2012_006
+CanyonI	MEM2012_007
+CanyonII	MEM2012_008
+CanyonIII	MEM2012_009
+CanyonIV	MEM2012_010
+Blank	MEM2012_011
+SecondPine	MEM2012_012
+SecondPine	MEM2012_013
+UpperPine	MEM2012_014
+UpperPine	MEM2012_015
+Ann	MEM2012_016
+Ann	MEM2012_017
+Mountain	MEM2012_018
+Mountain	MEM2012_019
+Howe	MEM2012_020
+Howe	MEM2012_021
+Rush	MEM2012_022
+Rush	MEM2012_023
+Pony	MEM2012_024
+Pony	MEM2012_025
+Ives	MEM2012_026
+Ives	MEM2012_027
+Lily	MEM2012_028
+Lily	MEM2012_029
+Blank	MEM2012_030

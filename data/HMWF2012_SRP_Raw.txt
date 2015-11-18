@@ -1,0 +1,33 @@
+Sample	A(885)
+Blank	0.007
+Blank	0.008
+Blank	0.003
+2x Reagent	0.005
+Initial Water Zero	0.000
+5 ug P/L	0.031
+5 ug P/L	0.031
+5 ug P/L	0.025
+10 ug P/L	0.063
+10 ug P/L	0.062
+10 ug P/L	0.058
+25 ug P/L	0.161
+25 ug P/L	0.167
+25 ug P/L	0.160
+50 ug P/L	0.328
+50 ug P/L	0.326
+50 ug P/L	0.297
+100 ug P/L	0.641
+100 ug P/L	0.651
+100 ug P/L	0.634
+Howe	0.012
+Upper Pine	0.018
+Ives	0.018
+Canyon Hypo	0.008
+Second Pine	0.015
+Lily	0.017
+Ann	0.010
+Canyon Chemo	0.048
+Mountain	0.012
+Pony	0.035
+Canyon Epi	0.010
+Rush	0.011

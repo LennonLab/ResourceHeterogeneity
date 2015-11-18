@@ -1,0 +1,39 @@
+Sample	A(885nm)
+Blank	0.034
+Blank	0.032
+2X Reagent	0.06
+2X Reagent	0.044
+Initial Water Zero	0
+Final Water Zero	0
+5 ug P/L	0.074
+5 ug P/L	0.091
+10 ug P/L	0.158
+10 ug P/L	0.152
+25 ug P/L	0.323
+25 ug P/L	0.321
+50 ug P/L	0.605
+50 ug P/L	0.641
+100 ug P/L	1.251
+100 ug P/L	1.163
+UpperPine Unfiltered	0.065
+UpperPine Filtered	0.055
+Ann Unfiltered	0.077
+Ann Filtered	0.048
+NorthPony Unfiltered	0.212
+NorthPony Filtered	0.137
+SouthPony Unfiltered	0.157
+SouthPony Filtered	0.136
+Canyon Unfiltered	0.059
+Canyon Filtered	0.06
+Rush Unfiltered	NA
+Rush Filtered	0.048
+Mountain Unfiltered	0.055
+Mountain Filtered	0.053
+SecondPine Unfiltered	0.072
+SecondPine Filtered	0.058
+Ives Unfiltered	0.046
+Ives Filtered	0.038
+Howe Unfiltered	0.052
+Howe Filtered	0.036
+Lily Unfiltered	0.086
+Lily Filtered	0.052

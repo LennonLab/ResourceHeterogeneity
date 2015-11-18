@@ -1,0 +1,39 @@
+Sample	A(885)
+Blank	0.009
+Blank****	0.04
+Blank	0.012
+2x Reagent	0.012
+Initial Water Zero	0
+Final Water Zero	0.016
+5 ug P/L	0.07
+5 ug P/L	0.072
+5 ug P/L	0.073
+10 ug P/L	0.132
+10 ug P/L	0.135
+10 ug P/L	0.136
+25 ug P/L	0.339
+25 ug P/L	0.336
+25 ug P/L	0.335
+50 ug P/L	0.667
+50 ug P/L	0.664
+50 ug P/L	0.665
+100 ug P/L	1.319
+100 ug P/L	1.341
+100 ug P/L	1.33
+Blank	0.006
+Blank	0.012
+2x Reagent	0.011
+2x Reagent	0.011
+Upper Pine	0.014
+Ives	0.007
+Second Pine	0.012
+Howe	0.007
+Mountain	0.034
+Rush	0.008
+Lily	0.012
+North Pony	0.045
+Ann	0.01
+South Pony	0.052
+Canyon	0.01
+Initial Water Zero	0
+Final Water Zero	0
