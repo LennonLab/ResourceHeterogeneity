@@ -519,11 +519,11 @@ res.hmwf <- res.in[-c(which(rownames(res.in) %in% c("blank", "CanyonChemo",
 summary(blank)
 blank[which(blank > 2 * sd(blank))]
 
-res.hmwf <- res.hmwf[, -c(which(blank > sd(blank)))]
+# res.hmwf <- res.hmwf[, -c(which(blank > sd(blank)))]
 
 # What other peaks should be removed
 for (i in 1:dim(res.hmwf)[1]){
-  res.hmwf[i, ] <- res.hmwf[i, ] - blank
+  res.hmwf[i, ] <- res.hmwf[i, ] - blank * 1.1
 }
 
 res.hmwf[res.hmwf < 0] <- 0
@@ -561,42 +561,70 @@ res.simpsE <- round(apply(res, 1, SimpE), 3)
 
 # Shannon's Diversity
 res.shan <- round(apply(res, 1, H), 2)
-res.shan2 <- diversity(res, index = "shannon")
+res.shan2 <- round(diversity(res, index = "shannon"), 2)
 
-res.div <- as.data.frame(cbind(S.res, res.simpsE, res.shan))
+res.div <- as.data.frame(cbind(S.res, res.simpsE, res.shan2))
 ```
 
+## Figure 5: Resource Diversity
+```{r results='hide'}
+png(filename="../figures/Figure5.png",
+    width = 1600, height = 1200, res = 96*2)
+par(opar)
+par(mfrow = c(1,1), mar = c(0, 9, 0, 0) + 0.5, oma = c(5, 0, 1, 1) + 0.5)
+layout(rbind(1, 2, 3), height = c(3, 3, 3)) 
+labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
+         "Second\nPine","Upper\nPine")
+rich <- barplot(res.div$S.res, names.arg = NULL, las =1, ylim=c(0, 2000), 
+     xlab = "", ylab = "")
+mtext(side = 2, text = "Resource\nRichness", cex.lab = 1.2, line = 4.5)
+even <- barplot(res.div$res.simpsE, names.arg = NULL, las =1, ylim=c(0, 0.27), 
+     xlab = "", ylab = "")
+mtext(side = 2, text = "Simpson's\nEvenness", cex.lab = 1.2, line = 4.5)
+shan <- barplot(res.div$res.shan, names.arg = NULL, las = 1, ylim = c(0, 9), 
+     xlab = "", ylab = "")
+mtext(side = 2, text = "Shannon\nDiversity", cex.lab = 1.2, line = 4.5)
+mtext(side = 1, text = labs, line = 2, at = shan, padj = 0.5, cex = 0.8)
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+par(opar)
+```
+
+```{r fig.width=8, fig.height=5,echo=FALSE,fig.cap="Resource Alpha Diversity"}
+img <- readPNG("../figures/Figure5.png")
+grid.raster(img)
+```
+
+
+## Hypothesis that resource diversity is related to nutrient concentration
 ```{r}
-par(mfrow = c(1,1), mar = c(0, 4, 0, 1) + 0.5, oma = c(3, 0, 0, 0) + 0.5)
-layout(rbind(1, 2), height = c(3, 3)) 
+nuts2012 <- nuts2[nuts2$year == "2012" & nuts2$molecule == "DNA", ]
+evenmod <- lm(res.div$res.simpsE ~ nuts2012$DOC*nuts2012$TN*nuts2012$TP)
+richmod <- lm(res.div$S.res ~ nuts2012$DOC*nuts2012$TN*nuts2012$TP)
+summary(evenmod)
+summary(richmod)
+```
 
-plot(res.div$res.simpsE, alpha.div$simpsE, las = 1, cex = 1.5,
-     xlab = "Lake", ylab = "Simpson's Evenness", xaxt="n")
+## Hypothesis that resource diversity influences consumer diversity
+```{r]}
+alpha.div2012 <- alpha.div[alpha.div$Year == "2012" & alpha.div$Molecule == "DNA", c(1, 4:6)]
+rownames(alpha.div2012) <- alpha.div2012[, 1]
+alpha.div2012 <- alpha.div2012[, -1]
+rownames(res.div) == rownames(alpha.div2012)
 
-plot(res.div$res.shan,  row.names(res.div), las = 1, cex=1.5,
-     xlab = "Lake", ylab = "Shannon Diversity")
+cor(res.div, alpha.div2012)
 
-res.div
-
-
-res.div$DOC <- aggregate(DOC$conc, list(DOC$sample), mean)$x
-res.div$TN <- aggregate(TN$conc, list(TN$sample), mean)$x
-res.div$TP <- aggregate(TP$conc, list(TP$sample), mean)$x
-
-plot(res.div$DOC ~ res.div$res.simpsE)
-
-
+rich.mod1 <- lm(alpha.div2012$S.obs ~ res.div$S.res)
+rich.mod2 <- lm(alpha.div2012$S.obs ~ res.div$res.simpsE)
+summary(rich.mod1)
+summary(rich.mod2)
 ```
 
 ## Between site comparisions of resources
 ```{r}
 # Calculate Bray-Curtis 
 res.db <- vegdist(resREL, method = "bray")
-
-```
-
-
-```{r}
 
 res.pcoa <- cmdscale(res.db, eig = TRUE, k = 3) 
 explainvar1 <- round(res.pcoa$eig[1] / sum(res.pcoa$eig), 3) * 100
@@ -619,16 +647,16 @@ lines(1:10, b.stick, type = "l", lty = 4, lwd = 2, col = "red")
 # Add Legend
 legend("topright", legend = c("Avg Eigenvalue", "Broken-Stick"), 
        lty = c(2, 4), bty = "n", col = c("blue", "red"))
-
-
 ```
 
 
-## Resource Difference Plots
-```{r}
+## Figre 6: Resource Differences Across Sites
+```{r results='hide'}
+png(filename="../figures/Figure6.png",
+    width = 1200, height = 1200, res = 96*2)
 par(opar)
 # Define Plot Parameters
-par(mar = c(5, 5, 1, 2) + 0.1)
+par(mar = c(5, 5, 1, 1) + 0.1)
 
 # Initiate Plot
 plot(res.pcoa$points[ ,1], res.pcoa$points[ ,2], ylim = c(-0.1, 0.15),
@@ -648,8 +676,16 @@ points(res.pcoa$points[ ,1], res.pcoa$points[ ,2],
        pch = 19, cex = 3, bg = "gray", col = "gray")
 text(res.pcoa$points[ ,1], res.pcoa$points[ ,2], 
      labels = row.names(res.pcoa$points))
-
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+par(opar)
 ```
+
+```{r fig.width=8, fig.height=5,echo=FALSE,fig.cap="Resource Ordination"}
+img <- readPNG("../figures/Figure6.png")
+grid.raster(img)
+```
+
 
 
 ## Resource Explainations of Differences
