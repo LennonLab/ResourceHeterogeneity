@@ -29,6 +29,7 @@ se <- function(x, ...){sd(x, na.rm = TRUE)/sqrt(length(na.omit(x)))}
 opar <- par(no.readonly = TRUE)  # Saves plot defaults
 
 # Load Required Packages
+require("xtable")
 require("png")
 require("grid")
 require("vegan")
@@ -110,9 +111,35 @@ TP2 <- aggregate(conc ~ sample + year, TP2, mean)
 nuts <- data.frame("sample" = DOC2$sample, "year" = DOC2$year, 
               "DOC" = DOC2$conc, "TP" = TP2$conc, "TN" = TN2$conc)
 
+nuts <- data.frame(nuts[-which(nuts$sample == "Pony.N"), ])
 nuts$sample[grep("Pony", nuts$sample)] <- "Pony"
 nuts <- droplevels(nuts)
 ```
+
+## Table 1: Lake Nutrients
+```{r}
+nuts2 <- data.frame(matrix(NA, 10, 4))
+row.names(nuts2) <- levels(nuts$sample)
+colnames(nuts2) <- c("DOC11", "DOC12", "TP11", "TP12")
+for (i in row.names(nuts2)){
+  nuts2[i, 1] <- round(nuts[nuts$sample == i & nuts$year == "2011", 3], 2)
+  nuts2[i, 2] <- round(nuts[nuts$sample == i & nuts$year == "2012", 3], 2)
+  nuts2[i, 3] <- round(nuts[nuts$sample == i & nuts$year == "2011", 4], 2)    
+  nuts2[i, 4] <- round(nuts[nuts$sample == i & nuts$year == "2012", 4], 2)
+}
+
+addtorow <- list()
+addtorow$pos <- list(0, 0)
+addtorow$command <- c("& \\multicolumn{2}{c}{DOC (mg C/L)} & 
+                      \\multicolumn{2}{c}{TP ($\\mu$g P/L)} \\\\\n", 
+                      "Lake & 2011 & 2012 & 2011 & 2012 \\\\\n")
+nut.tab <- xtable(nuts2)
+align(nut.tab) <- "crrrr"
+print(nut.tab, add.to.row = addtorow, include.colnames = FALSE, 
+      type= "latex", file="../tables/table1.tex")
+```
+
+\input{../tables/table1.tex}
 
 ## Figure 1: Lake Nutrients
 ```{r results='hide'}
