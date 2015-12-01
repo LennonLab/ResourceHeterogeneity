@@ -137,9 +137,8 @@ nut.tab <- xtable(nuts2)
 align(nut.tab) <- "crrrr"
 print(nut.tab, add.to.row = addtorow, include.colnames = FALSE, 
       type= "latex", file="../tables/table1.tex")
+print(nut.tab, add.to.row = addtorow, include.colnames = FALSE)
 ```
-
-\input{../tables/table1.tex}
 
 ## Figure 1: Lake Nutrients
 ```{r results='hide'}
@@ -201,9 +200,8 @@ mtext(side = 1, text = labs, line = 1, at = seq(1:10), padj = 0.5, cex = 0.8)
 legend("topleft", "C", bty = "n", x.intersp = 0, cex = 1.25)
 box(lwd = 2)
 
-
 dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices
+graphics.off() # shuts down open devices 
 par(opar)
 ```
 
