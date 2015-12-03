@@ -446,10 +446,11 @@ What are the differences between lakes and does resource concentration explain d
 
 ```{r}
 nuts
+design2 <- design[c("NorthPony2011_DNA", "NorthPony2011_RNA"), ]
 nuts2 <- data.frame(nuts[rep(seq_len(nrow(nuts)), each=2),])
-nuts2$molecule <- rep(c("DNA", "RNA"), 21)
+nuts2$molecule <- rep(c("DNA", "RNA"), 20)
 nuts2 <- nuts2[order(nuts2$sample, nuts2$year, nuts2$molecule), ]
-as.character(nuts2$sample) == as.character(design$Lake)
+as.character(nuts2$sample) == as.character(design2$Lake)
 
 beta.dis <- betadisper(vegdist(OTUsREL, "bray"), design$Lake)
 permutest(beta.dis)
