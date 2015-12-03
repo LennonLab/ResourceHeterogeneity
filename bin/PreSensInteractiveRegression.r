@@ -120,7 +120,7 @@ PreSens.Respiration <- function(infile = " ", outfile = " ", in.format = "Rows")
 # Make Basic plot
   plot(panel$samp ~ Time, type = "b", col = "darkgrey", xlab = "Time (Hrs)",
     ylab = expression(paste("Oxygen Concentration (uM O "[2],")")),
-    par(bty="n"),xlim=c(0,max(Time)+1),ylim=c(200, 325),
+    par(bty="n"),xlim=c(0,max(Time)+1),ylim=c(0, 400),
     xaxs = "i", yaxs = "i", axes = FALSE, cex.main = 0.95, cex.lab = 1.25,
     main = "Interactive Regression of PreSens Respiration Data")
   axis(1, col = "grey", cex=1.25); axis(2, col = "grey", cex=1.25)
