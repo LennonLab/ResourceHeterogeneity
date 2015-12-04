@@ -11,3 +11,10 @@
 # produced vignettes
 vignettes/*.html
 vignettes/*.pdf
+
+# LaTeX Files
+tables/*.aux
+tables/*.fdb_latexmk
+tables/*.fls
+tables/*.log
+tables/*.gz
