@@ -43,7 +43,7 @@ source("../bin/PreSensRespiration.R")
 # HMWF 2011 Day 1
 input  <-  "../data/PreSens/HMWF2011_Day1_Oxygen.txt"
 output <-  "../data/PreSens/HMWF2011_Day1_BR.txt"
-in.name <- c("F.Ives", "F.Howe", "F.Rush", "F.NPony", "F.Pony", "Empty",
+in.name <- c("Ives", "Howe", "Rush", "NPony", "Pony", "Empty",
              rep("Empty", 6),
              "UF.Ives", "UF.Howe", "UF.Rush", "UF.NPony", "UF.Pony", "Empty",
              rep("Empty", 6))
@@ -53,7 +53,7 @@ PreSens.Respiration2(infile = input, outfile = output, start = 20,
 # HMWF 2011 Day 2
 input  <-  "../data/PreSens/HMWF2011_Day2_Oxygen.txt"
 output <-  "../data/PreSens/HMWF2011_Day2_BR.txt"
-in.name <- c("F.UpperPine", "F.SecondPine", "F.Mountain", "F.Lily", rep("Empty", 2),
+in.name <- c("UpperPine", "SecondPine", "Mountain", "Lily", rep("Empty", 2),
              "UF.UpperPine", "UF.SecondPine", "UF.Mountain", "UF.Lily", rep("Empty", 2),
              rep("Empty", 6),
              rep("Empty", 6))
@@ -65,7 +65,7 @@ input  <-  "../data/PreSens/HMWF2011_Day2_Oxygen.txt"
 output <-  "../data/PreSens/HMWF2011_Day3_BR.txt"
 in.name <- c(rep("Empty", 6),
              rep("Empty", 6),
-             "F.Ann", "F.Canyon", rep("Empty", 4),
+             "Ann", "Canyon", rep("Empty", 4),
              "UF.Ann", "UF.Canyon", rep("Empty", 4))
 PreSens.Respiration2(infile = input, outfile = output, start = 43,
                      end = 53, name.in = in.name)
@@ -107,4 +107,32 @@ in.name <- c(rep("Empty", 3), rep("Ives", 3),
 PreSens.Respiration2(infile = input, outfile = output, start = 80,
                      end = 140, name.in = in.name)
 
+# Import Individual Output Files
+hmwf2011a <- read.csv("../data/PreSens/HMWF2011_Day1_BR.txt")
+hmwf2011b <- read.csv("../data/PreSens/HMWF2011_Day2_BR.txt")
+hmwf2011c <- read.csv("../data/PreSens/HMWF2011_Day3_BR.txt")
+hmwf2012a <- read.csv("../data/PreSens/HMWF2012_Day1_BR.txt")
+hmwf2012b <- read.csv("../data/PreSens/HMWF2012_Day2_BR.txt")
+hmwf2012c <- read.csv("../data/PreSens/HMWF2012_Day3_BR.txt")
+hmwf2012d <- read.csv("../data/PreSens/HMWF2012_Day4_BR.txt")
 
+# Add Years
+hmwf2011a$year <- 2011
+hmwf2011b$year <- 2011
+hmwf2011c$year <- 2011
+hmwf2012a$year <- 2012
+hmwf2012b$year <- 2012
+hmwf2012c$year <- 2012
+hmwf2012d$year <- 2012
+
+hmwf_resp <- do.call("rbind", list(hmwf2011a, hmwf2011b, hmwf2011c, hmwf2012a,
+                                   hmwf2012b, hmwf2012c, hmwf2012d))
+
+colnames(hmwf_resp) <- c("sample", "start", "end", "rate", "r2", "p", "year")
+
+lakes <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
+           "SecondPine", "UpperPine")
+
+hmwf_resp <- droplevels(hmwf_resp[hmwf_resp$sample %in% lakes, ])
+
+hmwfresp <- aggregate(rate ~ sample + year, hmwf_resp, mean)
