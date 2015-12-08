@@ -210,10 +210,38 @@ img <- readPNG("../figures/Figure1.png")
 grid.raster(img)
 ```
 
-# Chlorophyll A and Bacterial Respiration
+# Chlorophyll a and Bacterial Respiration
+```{r}
+chla <- read.delim("../data/ChlorophyllA.txt")
+resp <- read.delim("../data/Respiration.txt")
 
-## Figure 2: Chlorophyll A and BR
+```
 
+## Table 2: Chlorophyll a and BR
+```{r}
+nuts2 <- data.frame(matrix(NA, 10, 4))
+row.names(nuts2) <- levels(nuts$sample)
+colnames(nuts2) <- c("DOC11", "DOC12", "TP11", "TP12")
+for (i in row.names(nuts2)){
+  nuts2[i, 1] <- round(nuts[nuts$sample == i & nuts$year == "2011", 3], 2)
+  nuts2[i, 2] <- round(nuts[nuts$sample == i & nuts$year == "2012", 3], 2)
+  nuts2[i, 3] <- round(nuts[nuts$sample == i & nuts$year == "2011", 4], 2)    
+  nuts2[i, 4] <- round(nuts[nuts$sample == i & nuts$year == "2012", 4], 2)
+}
+
+addtorow <- list()
+addtorow$pos <- list(0, 0)
+addtorow$command <- c("& \\multicolumn{2}{c}{DOC (mg C/L)} & 
+                      \\multicolumn{2}{c}{TP ($\\mu$g P/L)} \\\\\n", 
+                      "Lake & 2011 & 2012 & 2011 & 2012 \\\\\n")
+nut.tab <- xtable(nuts2)
+align(nut.tab) <- "crrrr"
+print(nut.tab, add.to.row = addtorow, include.colnames = FALSE, 
+      type= "latex", file="../tables/table1.tex")
+print(nut.tab, add.to.row = addtorow, include.colnames = FALSE)
+
+
+```
 
 # Patterns of Bacterial Diversity
 
