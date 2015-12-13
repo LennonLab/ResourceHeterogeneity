@@ -219,28 +219,26 @@ resp <- read.delim("../data/Respiration.txt")
 
 ## Table 2: Chlorophyll a and BR
 ```{r}
-nuts2 <- data.frame(matrix(NA, 10, 4))
-row.names(nuts2) <- levels(nuts$sample)
-colnames(nuts2) <- c("DOC11", "DOC12", "TP11", "TP12")
-for (i in row.names(nuts2)){
-  nuts2[i, 1] <- round(nuts[nuts$sample == i & nuts$year == "2011", 3], 2)
-  nuts2[i, 2] <- round(nuts[nuts$sample == i & nuts$year == "2012", 3], 2)
-  nuts2[i, 3] <- round(nuts[nuts$sample == i & nuts$year == "2011", 4], 2)    
-  nuts2[i, 4] <- round(nuts[nuts$sample == i & nuts$year == "2012", 4], 2)
+eco <- data.frame(matrix(NA, 10, 4))
+row.names(eco) <- levels(chla$Lake)
+colnames(eco) <- c("Chl11", "Chl12", "Resp11", "Resp12")
+for (i in row.names(eco)){
+  eco[i, 1] <- round(mean(chla[chla$Lake == i & chla$Year == "2011", 3]), 2)
+  eco[i, 2] <- round(mean(chla[chla$Lake == i & chla$Year == "2012", 3]), 2)
+  eco[i, 3] <- round(mean(resp[resp$sample == i & resp$year == "2011", 4]), 3)    
+  eco[i, 4] <- round(mean(resp[resp$sample == i & resp$year == "2012", 4]), 3)
 }
 
 addtorow <- list()
 addtorow$pos <- list(0, 0)
-addtorow$command <- c("& \\multicolumn{2}{c}{DOC (mg C/L)} & 
-                      \\multicolumn{2}{c}{TP ($\\mu$g P/L)} \\\\\n", 
+addtorow$command <- c("& \\multicolumn{2}{c}{Chl a ($\\mu$g/L)} & 
+                      \\multicolumn{2}{c}{Resp. (mg O2 Hr-1)} \\\\\n", 
                       "Lake & 2011 & 2012 & 2011 & 2012 \\\\\n")
-nut.tab <- xtable(nuts2)
-align(nut.tab) <- "crrrr"
-print(nut.tab, add.to.row = addtorow, include.colnames = FALSE, 
-      type= "latex", file="../tables/table1.tex")
-print(nut.tab, add.to.row = addtorow, include.colnames = FALSE)
-
-
+eco.tab <- xtable(eco)
+align(eco.tab) <- "crrrr"
+print(eco.tab, add.to.row = addtorow, include.colnames = FALSE, 
+      type= "latex", file="../tables/table2.tex")
+print(eco.tab, add.to.row = addtorow, include.colnames = FALSE)
 ```
 
 # Patterns of Bacterial Diversity
