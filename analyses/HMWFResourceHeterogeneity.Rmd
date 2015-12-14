@@ -810,3 +810,62 @@ Are generalists more abundant when resource concentration is higher?
 # Can we group resources
 What are the similar groups of resources: cluster resources based on abundance
 Can we cluster based on chemical data?
+
+```{r}
+resREL
+res.dist <- vegdist(t(resREL), "bray")
+
+res2.pcoa <- cmdscale(res.dist, eig = TRUE, k = 3) 
+explainvar1 <- round(res2.pcoa$eig[1] / sum(res2.pcoa$eig), 3) * 100
+explainvar2 <- round(res2.pcoa$eig[2] / sum(res2.pcoa$eig), 3) * 100
+explainvar3 <- round(res2.pcoa$eig[3] / sum(res2.pcoa$eig), 3) * 100
+sum.eig <- sum(explainvar1, explainvar2, explainvar3)
+
+# Define Plot Parameters
+par(mar = c(5, 5, 1, 1) + 0.1)
+
+# Initiate Plot
+plot(res2.pcoa$points[ ,1], res2.pcoa$points[ ,2], ylim = c(-0.75, 0.75),
+     xlim = c(-0.75, 0.75), 
+     xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
+
+# Add Axes
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+# Add Points & Labels
+points(res2.pcoa$points[ ,1], res2.pcoa$points[ ,2],
+       pch = 19, cex = 3, bg = "gray", col = "gray")
+text(res2.pcoa$points[ ,1], res2.pcoa$points[ ,2], 
+     labels = row.names(res.pcoa$points))
+
+
+# Distances between molecules given sites
+summary(resREL) # the data
+
+# Calculate distances
+res.dist <- vegdist(resREL, method = "bray")
+res.dist2 <- vegdist(t(resREL), method = "bray")
+
+res.pcoa <- cmdscale(res.dist2, eig = TRUE, k = 3) 
+
+
+
+# Clustering
+res.k <- kmeans(resREL, 5, iter.max = 10)
+
+plot(resREL, col = res.k$cluster)
+
+
+
+# Perform Cluster Analysis
+fish.ward <- hclust(res.dist, method = "ward.D2")
+# Plot Cluster
+par(mar = c(1, 5, 2, 2) + 0.1)
+plot(fish.ward, main = "Sites by Resource")
+
+```
