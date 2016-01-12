@@ -5,6 +5,7 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 header-includes:
    - \usepackage{array}
    - \usepackage{graphics}
+   - \usepackage{booktabs}
 output: 
   pdf_document:
     fig_caption: true
@@ -863,9 +864,14 @@ plot(resREL, col = res.k$cluster)
 
 
 # Perform Cluster Analysis
-fish.ward <- hclust(res.dist, method = "ward.D2")
+res.ward <- hclust(res.dist, method = "ward.D2")
 # Plot Cluster
 par(mar = c(1, 5, 2, 2) + 0.1)
-plot(fish.ward, main = "Sites by Resource")
+plot(res.ward, main = "Sites by Resource")
+
+bac.dist <- vegdist(OTUsREL[design$Year == "2012" & 
+                              design$Molecule == "DNA", ], method="bray")
+bac.ward <- hclust(bac.dist, method = "ward.D2")
+plot(bac.ward, main = "Sites by Species")
 
 ```
