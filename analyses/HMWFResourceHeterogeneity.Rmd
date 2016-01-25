@@ -34,6 +34,7 @@ require("xtable")
 require("png")
 require("grid")
 require("vegan")
+require("RgoogleMaps")
 ```
 
 # Supplemental Figure 1: Study System Map
@@ -42,6 +43,11 @@ The Huron Mountains are located in the Superior Bedrock Uplands region of the Mi
 The region is classified as ....
 The forests around the lakes are ....
 The wetershed is ....
+```{r}
+newmap <- GetMap(center = c(46.86, -87.89), zoom = 13, destfile = "../figures/Supp1.png",
+                 maptype = "terrain")
+PlotOnStaticMap(newmap, zoom = 13, cex = 2, col = "blue")
+```
 
 # Lake Nutrient Concentrations
 ```{r}
@@ -51,7 +57,7 @@ DOC2012 <- read.delim("../data/2012DOC_data.txt", header=T)
 DOC <- rbind(DOC2011, DOC2012)
 DOC <- DOC[grep("MEM*", DOC$Sample), ]
 colnames(DOC) <- c("sample", "conc", "LCL", "UCL", "se")
-DOCkey <- read.delim("../data/DOC_Key_epi.txt", header=T)
+DOCkey <- read.delim("../data/DOC_KEY_epi.txt", header=T)
 DOC$code <- DOC$sample
 DOC <- DOC[which(DOC$code %in% DOCkey$Sample.Name), ]
 DOC$sample <- DOCkey$Site[match(DOCkey$Sample.Name, DOC$code)]
@@ -68,7 +74,7 @@ TN2012 <- read.delim("../data/2012TN_data.txt", header=T)
 TN <- rbind(TN2011, TN2012)
 TN <- TN[grep("MEM*", TN$Sample), ]
 colnames(TN) <- c("sample", "conc", "LCL", "UCL", "se")
-TNkey <- read.delim("../data/DOC_Key_epi.txt", header=T)
+TNkey <- read.delim("../data/DOC_KEY_epi.txt", header=T)
 TN$code <- TN$sample
 TN <- TN[which(TN$code %in% TNkey$Sample.Name), ]
 TN$sample <- TNkey$Site[match(TNkey$Sample.Name, TN$code)]
@@ -295,7 +301,6 @@ OTUsREL <- OTUs
 for(i in 1:dim(OTUs)[1]){
   OTUsREL[i,] <- OTUs[i,]/sum(OTUs[i,])
 }
-require(vegan)
 
 # Log Transform Relative Abundances
 OTUsREL.log <- decostand(OTUs, method="log")
