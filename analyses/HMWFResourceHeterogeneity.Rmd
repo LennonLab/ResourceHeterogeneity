@@ -44,9 +44,14 @@ The region is classified as ....
 The forests around the lakes are ....
 The wetershed is ....
 ```{r}
-newmap <- GetMap(center = c(46.86, -87.89), zoom = 13, destfile = "../figures/Supp1.png",
+newmap <- GetMap(center = c(46.86, -87.89), zoom = 12, destfile = "../figures/Supp1.png",
                  maptype = "terrain", GRAYSCALE = FALSE)
 PlotOnStaticMap(newmap, zoom = 13, cex = 2, col = "blue")
+
+library(maps)
+library(mapdata)
+map("state", "Michigan", col="gray90", fill=TRUE, xlim=c(-92,-82), ylim=c(41, 48))
+points(-87.89, 46.8, pch = 20, col="red")
 ```
 
 # Lake Nutrient Concentrations
@@ -124,7 +129,7 @@ nuts <- droplevels(nuts)
 ```
 
 ## Table 1: Lake Nutrients
-```{r}
+```{r, results="asis"}
 nuts2 <- data.frame(matrix(NA, 10, 4))
 row.names(nuts2) <- levels(nuts$sample)
 colnames(nuts2) <- c("DOC11", "DOC12", "TP11", "TP12")
@@ -143,9 +148,11 @@ addtorow$command <- c("& \\multicolumn{2}{c}{DOC (mg C/L)} &
 nut.tab <- xtable(nuts2)
 align(nut.tab) <- "crrrr"
 print(nut.tab, add.to.row = addtorow, include.colnames = FALSE, 
-      type= "latex", file="../tables/table1.tex")
-print(nut.tab, add.to.row = addtorow, include.colnames = FALSE)
+      type= "latex", file="../tables/table1.tex", hline.after = c(-1, -1, 0, nrow(nut.tab)))
+print(nut.tab, add.to.row = addtorow, include.colnames = FALSE, comment = FALSE, hline.after = c(-1, -1, 0, nrow(nut.tab)))
 ```
+
+
 
 ## Figure 1: Lake Nutrients
 ```{r results='hide'}
@@ -224,7 +231,7 @@ resp <- read.delim("../data/Respiration.txt")
 ```
 
 ## Table 2: Chlorophyll a and BR
-```{r}
+```{r, results="asis"}
 eco <- data.frame(matrix(NA, 10, 4))
 row.names(eco) <- levels(chla$Lake)
 colnames(eco) <- c("Chl11", "Chl12", "Resp11", "Resp12")
@@ -238,13 +245,13 @@ for (i in row.names(eco)){
 addtorow <- list()
 addtorow$pos <- list(0, 0)
 addtorow$command <- c("& \\multicolumn{2}{c}{Chl a ($\\mu$g/L)} & 
-                      \\multicolumn{2}{c}{Resp. (mg O2 Hr-1)} \\\\\n", 
+                      \\multicolumn{2}{c}{Resp. ($\\mu$ O2 Hr-1)} \\\\\n", 
                       "Lake & 2011 & 2012 & 2011 & 2012 \\\\\n")
 eco.tab <- xtable(eco)
 align(eco.tab) <- "crrrr"
 print(eco.tab, add.to.row = addtorow, include.colnames = FALSE, 
-      type= "latex", file="../tables/table2.tex")
-print(eco.tab, add.to.row = addtorow, include.colnames = FALSE)
+      type= "latex", file="../tables/table2.tex", hline.after = c(-1, -1, 0, nrow(eco.tab)))
+print(eco.tab, add.to.row = addtorow, include.colnames = FALSE, comment = FALSE, hline.after = c(-1, -1, 0, nrow(eco.tab)))
 ```
 
 ## Figure 2: Ecosystem
@@ -253,10 +260,10 @@ chla2 <- chla[chla$Year == "2012", ]
 resp2 <- resp[resp$year == "2012", ]
 
 png(filename="../figures/Figure2.png",
-    width = 1600, height =900, res = 96*2)
+    width = 1600, height =1200, res = 96*2)
 par(opar)
 par(mfrow = c(1,1), mar = c(0, 6, 0, 0) + 0.5, oma = c(4, 0, 1, 1) + 0.5)
-layout(rbind(1, 2), height = c(3, 3)) 
+layout(rbind(1, 2), height = c(4, 4)) 
 
 labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
          "Second\nPine","Upper\nPine")
@@ -659,6 +666,8 @@ for(i in 1:dim(res)[1]){
   resREL[i,] <- res[i,]/sum(res[i,])
 }
 
+# Log Transform Relative Resource Abundance
+resREL.log <- decostand(resREL, method="log")
 ```
 
 ## Calculate Alpha Diversity
@@ -714,6 +723,14 @@ evenmod <- lm(res.div$res.simpsE ~ nuts2012$DOC*nuts2012$TN*nuts2012$TP)
 richmod <- lm(res.div$S.res ~ nuts2012$DOC*nuts2012$TN*nuts2012$TP)
 summary(evenmod)
 summary(richmod)
+
+evenmod <- lm(res.div$res.simpsE ~ log(nuts2012$DOC))
+richmod <- lm(res.div$S.res ~ log(nuts2012$DOC))
+summary(evenmod)
+summary(richmod)
+
+xtable(summary(evenmod))
+
 ```
 
 ## Hypothesis that resource diversity influences consumer diversity
@@ -730,6 +747,15 @@ rich.mod2 <- lm(alpha.div2012$S.obs ~ res.div$res.simpsE)
 summary(rich.mod1)
 summary(rich.mod2)
 ```
+
+```{r}
+plot((rowSums(active.NPA)/rowSums(totalPA))[seq(2, 20, by = 2)] ~ res.div$res.simpsE,
+     xlab = "Resource Evennes", ylab = "Proportion of Active Taxa")
+res.ev <- lm((rowSums(active.NPA)/rowSums(totalPA))[seq(2, 20, by = 2)] ~ res.div$res.simpsE)
+abline(res.ev)
+
+```
+
 
 ## Between site comparisions of resources
 ```{r}
@@ -769,8 +795,8 @@ png(filename="../figures/Figure6.png",
 par(mar = c(5, 5, 1, 1) + 0.1)
 
 # Initiate Plot
-plot(res.pcoa$points[ ,1], res.pcoa$points[ ,2], ylim = c(-0.2, 0.4),
-     xlim = c(-0.5, 0.5), 
+plot(res.pcoa$points[ ,1], res.pcoa$points[ ,2], ylim = c(-0.25, 0.3),
+     xlim = c(-0.4, 0.4), 
      xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
      ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
      pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
@@ -840,8 +866,55 @@ lmod <- as.mlm(chem.dbrda)
 lmod
 summary(lmod)
 
+chem.dbrda <- capscale(resREL ~ log(nuts2012$DOC), add =T, distance = "bray")
+anova(chem.dbrda)
+RsquareAdj(chem.dbrda)
+coef(chem.dbrda)
+
+anova.cca(chem.dbrda, step=1000)
+plot(chem.dbrda)
+lmod <- as.mlm(chem.dbrda)
+lmod
+summary(lmod)
+
+
+
 require(cocorresp)
 #test1 <- coca(OTUsREL2012.RNA, resREL, n.axes = 4)
+
+# Variance Partitioning
+
+nuts3 <- cbind(scale(log(nuts2012$DOC)), scale(log1p(nuts2012$TP)))
+# nuts3 <- scale(log(nuts2012$DOC))
+rownames(nuts3) <- nuts2012$sample
+
+res.db <- vegdist(resREL, method = "altGower")
+res.pcoa <- cmdscale(res.db, eig = TRUE, k = 5) 
+
+OTUsREL.log2012 <- OTUsREL.log[design$Year == "2012" & design$Molecule == "RNA", ]
+OTUsREL2012 <- OTUsREL[design$Year == "2012" & design$Molecule == "RNA", ]
+spe.pcoa <- cmdscale(vegdist(OTUsREL2012, method="bray"), eig = TRUE, k = 5)
+
+
+# Active
+HMWFvarpart <- varpart(spe.pcoa$points[, 1:2], nuts3, res.pcoa$points[, 1:2])
+HMWFvarpart <- varpart(OTUsREL.log2012, nuts3, res.pcoa$points)
+HMWFvarpart
+
+png(filename="../figures/Figure7.png",
+    width = 1200, height = 1200, res = 96*2)
+
+plot(HMWFvarpart)
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+par(opar)
+
+anova.cca(rda(spe.pcoa$points, nuts3), step=1000) #[a+b]
+anova.cca(rda(spe.pcoa$points, res.pcoa$points), step=1000) #[b+c]
+anova.cca(rda(spe.pcoa$points, cbind(nuts3, res.pcoa$points)), step=1000) #[a+b+c]
+anova.cca(rda(spe.pcoa$points, res.pcoa$points, nuts3), step=1000) # [a]
+anova.cca(rda(spe.pcoa$points, nuts3, res.pcoa$points), step=1000) # [c]
 
 ```
 
@@ -870,7 +943,7 @@ What are the similar groups of resources: cluster resources based on abundance
 Can we cluster based on chemical data?
 
 ```{r}
-resREL
+
 res.dist <- vegdist(t(resREL), "bray")
 
 res2.pcoa <- cmdscale(res.dist, eig = TRUE, k = 3) 
@@ -916,7 +989,7 @@ res.pcoa <- cmdscale(res.dist2, eig = TRUE, k = 3)
 # Clustering
 res.k <- kmeans(resREL, 5, iter.max = 10)
 
-plot(resREL, col = res.k$cluster)
+# plot(resREL, col = res.k$cluster)
 
 
 
