@@ -5,12 +5,8 @@ Ann2012_DNA	Ann	DNA	2012
 Ann2012_RNA	Ann	RNA	2012
 Canyon2011_DNA	Canyon	DNA	2011
 Canyon2011_RNA	Canyon	RNA	2011
-CanyonChemo2012_DNA	CanyonChemo	DNA	2012
-CanyonChemo2012_RNA	CanyonChemo	RNA	2012
-CanyonEpi2012_DNA	Canyon	DNA	2012
-CanyonEpi2012_RNA	Canyon	RNA	2012
-CanyonHypo2012_DNA	CanyonHypo	DNA	2012
-CanyonHypo2012_RNA	CanyonHypo	RNA	2012
+Canyon2012_DNA	Canyon	DNA	2012
+Canyon2012_RNA	Canyon	RNA	2012
 Howe2011_DNA	Howe	DNA	2011
 Howe2011_RNA	Howe	RNA	2011
 Howe2012_DNA	Howe	DNA	2012
@@ -27,10 +23,8 @@ Mountain2011_DNA	Mountain	DNA	2011
 Mountain2011_RNA	Mountain	RNA	2011
 Mountain2012_DNA	Mountain	DNA	2012
 Mountain2012_RNA	Mountain	RNA	2012
-NorthPony2011_DNA	Pony	DNA	2011
-NorthPony2011_RNA	Pony	RNA	2011
-SouthPony2011_DNA	Pony	DNA	2011
-SouthPony2011_RNA	Pony	RNA	2011
+Pony2011_DNA	Pony	DNA	2011
+Pony2011_RNA	Pony	RNA	2011
 Pony2012_DNA	Pony	DNA	2012
 Pony2012_RNA	Pony	RNA	2012
 Rush2011_DNA	Rush	DNA	2011

@@ -136,3 +136,5 @@ lakes <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
 hmwf_resp <- droplevels(hmwf_resp[hmwf_resp$sample %in% lakes, ])
 
 hmwfresp <- aggregate(rate ~ sample + year, hmwf_resp, mean)
+
+write.table(hmwf_resp, "../data/Respiration.txt", sep = "\t", quote=F)
