@@ -29,7 +29,7 @@
 
 PreSens.Respiration2 <- function(infile = " ", outfile = " ", start = "",
                                  end = "", name.in = "", in.format = "Rows",
-                                 in.units = "mg", out.units = "mg"){
+                                 in.units = "mg", out.units = "uM"){
 
   # Global Options
   options(digits=6)
@@ -132,4 +132,3 @@ PreSens.Respiration2 <- function(infile = " ", outfile = " ", start = "",
   output <- na.omit(output)
   write.table(as.matrix(output), file=outfile, row.names=F, col.names=T, sep=",", quote=FALSE)
 }
-

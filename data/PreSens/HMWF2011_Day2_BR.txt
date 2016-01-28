@@ -1,9 +1,9 @@
-Sample,Start,End,Rate (mg O2 Hr-1),R2,P-value
-UpperPine,20,25,0.199,0.963,<0.001
-SecondPine,20,25,0.201,0.967,<0.001
-Mountain,20,25,0.266,0.985,<0.001
-Lily,20,25,0.227,0.977,<0.001
-UF.UpperPine,20,25,0.246,0.987,<0.001
-UF.SecondPine,20,25,0.254,0.947,<0.001
-UF.Mountain,20,25,0.235,0.976,<0.001
-UF.Lily,20,25,0.214,0.99,<0.001
+Sample,Start,End,Rate (µM O2 Hr-1),R2,P-value
+UpperPine,20,25,6.22,0.963,<0.001
+SecondPine,20,25,6.27,0.967,<0.001
+Mountain,20,25,8.31,0.985,<0.001
+Lily,20,25,7.1,0.977,<0.001
+UF.UpperPine,20,25,7.67,0.987,<0.001
+UF.SecondPine,20,25,7.92,0.947,<0.001
+UF.Mountain,20,25,7.34,0.976,<0.001
+UF.Lily,20,25,6.7,0.99,<0.001

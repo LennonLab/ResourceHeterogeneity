@@ -45,7 +45,7 @@ The forests around the lakes are ....
 The wetershed is ....
 ```{r}
 newmap <- GetMap(center = c(46.86, -87.89), zoom = 13, destfile = "../figures/Supp1.png",
-                 maptype = "terrain")
+                 maptype = "terrain", GRAYSCALE = FALSE)
 PlotOnStaticMap(newmap, zoom = 13, cex = 2, col = "blue")
 ```
 
@@ -221,7 +221,6 @@ grid.raster(img)
 ```{r}
 chla <- read.delim("../data/ChlorophyllA.txt")
 resp <- read.delim("../data/Respiration.txt")
-
 ```
 
 ## Table 2: Chlorophyll a and BR
@@ -248,6 +247,63 @@ print(eco.tab, add.to.row = addtorow, include.colnames = FALSE,
 print(eco.tab, add.to.row = addtorow, include.colnames = FALSE)
 ```
 
+## Figure 2: Ecosystem
+```{r results='hide'}
+chla2 <- chla[chla$Year == "2012", ]
+resp2 <- resp[resp$year == "2012", ]
+
+png(filename="../figures/Figure2.png",
+    width = 1600, height =900, res = 96*2)
+par(opar)
+par(mfrow = c(1,1), mar = c(0, 6, 0, 0) + 0.5, oma = c(4, 0, 1, 1) + 0.5)
+layout(rbind(1, 2), height = c(3, 3)) 
+
+labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
+         "Second\nPine","Upper\nPine")
+
+# ChlaA Plot 2012
+plot(chla2$ChlA ~ chla2$Lake, ylim = c(0, 20), las = 1, 
+     xaxt="n", xlab = "", yaxt="n", ylab = "")
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1.2, las = 1, 
+     at = c(0, 10, 20))
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 10, 20, 30))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0, 10, 20, 30))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 10, 20, 30))
+mtext(side = 2, expression(paste("Chl a (mg C L" ^-1, ")", sep="")), line = 3.5, cex = 1)
+legend("topleft", "A", bty = "n", x.intersp = 0, cex = 1.25)
+box(lwd = 2)
+
+# Bacterial Respiration
+plot(resp2$rate ~ resp2$sample, ylim = c(0,2), las = 1, 
+     xaxt="n", xlab = "", yaxt="n", ylab = "")
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1.2, las = 1, 
+     at = c(0, 1, 2))
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 1, 2))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0, 1, 2))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 1, 2))
+mtext(side = 2, expression(paste("Resp. (", mu, "M O"[2], " Hr" ^-1, ")")), line = 3.5, cex = 1)
+mtext(side = 1, text = labs, line = 1, at = seq(1:10), padj = 0.5, cex = 0.8)
+legend("topleft", "B", bty = "n", x.intersp = 0, cex = 1.25)
+box(lwd = 2)
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices 
+par(opar)
+```
+
+```{r fig.width=6, fig.height=5,echo=FALSE,fig.cap="Ecosystem"}
+img <- readPNG("../figures/Figure2.png")
+grid.raster(img)
+```
+
 # Patterns of Bacterial Diversity
 
 ## Import Raw Data
@@ -261,7 +317,7 @@ shared <- "../data/HMWF.bac.final.shared"
 taxon  <- "../data/HMWF.bac.final.0.03.taxonomy"
 
 # Import Design
-design.raw <- read.delim(design.in, header=T, row.names=1)
+design <- read.delim(design.in, header=T, row.names=1)
 
 # Import Shared Files
 OTUs.in <- read.otu(shared = shared, cutoff = "0.03")    # 97% Similarity
@@ -272,17 +328,12 @@ OTU.tax <- read.tax(taxonomy = taxon, format = "rdp")
 
 ## Data Transformations
 ```{r}
-# Remove Unwanted Sites
-OTUs.hmwf <- OTUs.in[-c(7, 8 , 11, 12), ]
-
-design <- design.raw[-c(7, 8 , 11, 12) , ]
-
 # Reorder Site
-OTUs.hmwf <- OTUs.hmwf[rownames(design), ]
-
+OTUs.hmwf <- OTUs.in[rownames(design), ]
 
 # Remove OTUs with less than two occurences across all sites
-OTUs <- OTUs.hmwf[, colSums((OTUs.hmwf > 0) * 1)  >= 2 | colSums(OTUs.hmwf >= 10)]
+OTUs <- OTUs.hmwf[, which(colSums(OTUs.hmwf) >= 2)]
+# OTUs <- OTUs.hmwf[, colSums((OTUs.hmwf > 0) * 1)  >= 2 | colSums(OTUs.hmwf >= 10)]
 
 # Sequencing Coverage
 coverage <- rowSums(OTUs)
@@ -349,12 +400,12 @@ par(opar)
 par(mfrow = c(1,1), mar = c(0, 6, 0, 0) + 0.5, oma = c(3, 0, 1, 1) + 0.5)
 layout(rbind(1, 2), height = c(3, 3)) 
 
-plot(alpha.div$S.obs ~ alpha.div$Lake,  ylim = c(0,7000), las = 1, 
+plot(alpha.div$S.obs ~ alpha.div$Lake,  ylim = c(0,5000), las = 1, 
      xaxt="n", xlab = "", yaxt="n", ylab = "")
 axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
 axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
 axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1, las = 1, 
-     at = c(1000, 3000, 5000, 7000))
+     at = c(1000, 3000, 5000))
 axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1000, 3000, 5000, 7000))
 axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
 axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
@@ -442,8 +493,8 @@ par(opar)
 par(mar = c(5, 5, 1, 1) + 0.1)
 
 # Initiate Plot
-plot(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2], ylim = c(-0.3, 0.3),
-     xlim = c(-0.3, 0.6), 
+plot(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2], 
+     ylim = c(-0.3, 0.25), xlim = c(-0.3, 0.6), 
      xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
      ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
      pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
@@ -478,18 +529,18 @@ What are the differences between lakes and does resource concentration explain d
 
 ```{r}
 nuts
-design2 <- design[c("NorthPony2011_DNA", "NorthPony2011_RNA"), ]
 nuts2 <- data.frame(nuts[rep(seq_len(nrow(nuts)), each=2),])
 nuts2$molecule <- rep(c("DNA", "RNA"), 20)
 nuts2 <- nuts2[order(nuts2$sample, nuts2$year, nuts2$molecule), ]
-as.character(nuts2$sample) == as.character(design2$Lake)
+as.character(nuts2$sample) == as.character(design$Lake)
 
-beta.dis <- betadisper(vegdist(OTUsREL, "bray"), design$Lake)
+beta.dis <- betadisper(vegdist(OTUsREL.log, "bray"), design$Lake)
 permutest(beta.dis)
 
-adonis(OTUsREL ~ design$Lake + design$Molecule + design$Year, method = "bray", permutations = 999)
+adonis(OTUsREL.log ~ design$Lake + design$Molecule + design$Year, method = "bray", permutations = 999)
 
-chem.dbrda <- capscale(OTUsREL ~ nuts2$DOC + nuts2$TN + nuts2$TP, add = T, distance = "bray")
+chem.dbrda <- capscale(OTUsREL.log ~ scale(log(nuts2$DOC)) + scale(log1p(nuts2$TN)) + 
+                         scale(log(nuts2$TP)), add = T, distance = "bray")
 anova(chem.dbrda)
 RsquareAdj(chem.dbrda)
 coef(chem.dbrda)
@@ -497,6 +548,7 @@ coef(chem.dbrda)
 anova.cca(chem.dbrda, step=1000)
 plot(chem.dbrda)
 lmod <- as.mlm(chem.dbrda)
+# influence.measures(lmod)
 lmod
 summary(lmod)
 ```
@@ -542,9 +594,9 @@ active.N <- total * (1-inactivePA)
 active.NPA <- (active.N > 0 ) * 1
 
 plot(rowSums(active.NPA)/rowSums(totalPA), rowSums(inactivePA)/rowSums(totalPA))
-plot(rowSums(active.NPA)/rowSums(totalPA) ~ nuts2$TP[nuts2$molecule == "DNA"],
-     xlab = "Total Phosphorus", ylab = "Proportion of Active Taxa")
-phos <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ nuts2$TP[nuts2$molecule == "DNA"])
+plot(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts2$TP[nuts2$molecule == "DNA"]),
+     xlab = "log10(Total Phosphorus)", ylab = "Proportion of Active Taxa")
+phos <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts2$TP[nuts2$molecule == "DNA"]))
 abline(phos)
 dim(activePA)
 dim(totalPA)
@@ -558,7 +610,7 @@ resource.pos <- "../data/SpecAbundAvePos.csv"
 resource.neg <- "../data/SpecAbundAveNeg.csv"
 
 # Import Resources
-res.in <- read.csv(resource.pos, header=T, row.names=1)
+res.in <- read.csv(resource.neg, header=T, row.names=1)
 
 rownames(res.in)
 rownames(res.in) <- c("Ann", "blank", "CanyonChemo", "Canyon", "CanyonHypo",
@@ -584,7 +636,7 @@ for (i in 1:dim(res.hmwf)[1]){
   res.hmwf[i, ] <- res.hmwf[i, ] - blank * 1.1
 }
 
-res.hmwf[res.hmwf < 0] <- 0
+res.hmwf[res.hmwf < 50] <- 0
 res.hmwf <- res.hmwf[,colSums(res.hmwf) > 0]
 ```
 
@@ -633,7 +685,7 @@ par(mfrow = c(1,1), mar = c(0, 9, 0, 0) + 0.5, oma = c(5, 0, 1, 1) + 0.5)
 layout(rbind(1, 2, 3), height = c(3, 3, 3)) 
 labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
          "Second\nPine","Upper\nPine")
-rich <- barplot(res.div$S.res, names.arg = NULL, las =1, ylim=c(0, 2000), 
+rich <- barplot(res.div$S.res, names.arg = NULL, las =1, ylim=c(0, 750), 
      xlab = "", ylab = "")
 mtext(side = 2, text = "Resource\nRichness", cex.lab = 1.2, line = 4.5)
 even <- barplot(res.div$res.simpsE, names.arg = NULL, las =1, ylim=c(0, 0.27), 
@@ -666,7 +718,7 @@ summary(richmod)
 
 ## Hypothesis that resource diversity influences consumer diversity
 ```{r]}
-alpha.div2012 <- alpha.div[alpha.div$Year == "2012" & alpha.div$Molecule == "DNA", c(1, 4:6)]
+alpha.div2012 <- alpha.div[alpha.div$Year == "2012" & alpha.div$Molecule == "RNA", c(1, 4:6)]
 rownames(alpha.div2012) <- alpha.div2012[, 1]
 alpha.div2012 <- alpha.div2012[, -1]
 rownames(res.div) == rownames(alpha.div2012)
