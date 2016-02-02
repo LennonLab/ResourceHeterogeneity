@@ -2,6 +2,7 @@
 .Rhistory
 .Rapp.history
 .rda
+/figures/*.rda
 
 # Example code in package build process
 *-Ex.R
