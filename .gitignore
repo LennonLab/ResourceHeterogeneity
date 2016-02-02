@@ -1,6 +1,7 @@
 # History files
 .Rhistory
 .Rapp.history
+.rda
 
 # Example code in package build process
 *-Ex.R
@@ -18,3 +19,6 @@ tables/*.fdb_latexmk
 tables/*.fls
 tables/*.log
 tables/*.gz
+
+# Mac
+.DS_Store
