@@ -1,0 +1,11 @@
+lake,depth
+Ann,7
+Canyon,21
+Howe,10
+Ives,30
+Lily,2
+Mountain,2
+Pony,2
+Rush,90
+SecondPine,4
+UpperPine,4

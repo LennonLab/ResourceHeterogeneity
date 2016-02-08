@@ -39,6 +39,9 @@ setwd("~/GitHub/ResourceHeterogeneity/analyses")
 source("../bin/PreSensInteractiveRegression.r") # Use to pick the time windows
 source("../bin/PreSensRespiration.R")
 
+# Test
+# PreSens.Respiration(infile = input, outfile = "./test.txt", in.format = "Rows")
+
 # HMWF Respiration Analyses
 # HMWF 2011 Day 1
 input  <-  "../data/PreSens/HMWF2011_Day1_Oxygen.txt"
@@ -47,8 +50,8 @@ in.name <- c("Ives", "Howe", "Rush", "NPony", "Pony", "Empty",
              rep("Empty", 6),
              "UF.Ives", "UF.Howe", "UF.Rush", "UF.NPony", "UF.Pony", "Empty",
              rep("Empty", 6))
-PreSens.Respiration2(infile = input, outfile = output, start = 20,
-                     end = 25, name.in = in.name)
+PreSens.Respiration2(infile = input, outfile = output, start = 32,
+                     end = 40, name.in = in.name)
 
 # HMWF 2011 Day 2
 input  <-  "../data/PreSens/HMWF2011_Day2_Oxygen.txt"
@@ -57,8 +60,8 @@ in.name <- c("UpperPine", "SecondPine", "Mountain", "Lily", rep("Empty", 2),
              "UF.UpperPine", "UF.SecondPine", "UF.Mountain", "UF.Lily", rep("Empty", 2),
              rep("Empty", 6),
              rep("Empty", 6))
-PreSens.Respiration2(infile = input, outfile = output, start = 20,
-                     end = 25, name.in = in.name)
+PreSens.Respiration2(infile = input, outfile = output, start = 32,
+                     end = 40, name.in = in.name)
 
 # HMWF 2011 Day 3
 input  <-  "../data/PreSens/HMWF2011_Day2_Oxygen.txt"
@@ -74,8 +77,8 @@ PreSens.Respiration2(infile = input, outfile = output, start = 43,
 input  <-  "../data/PreSens/HMWF2012_171_Oxygen.txt"
 output <-  "../data/PreSens/HMWF2012_Day1_BR.txt"
 in.name <- c("Canyon", "Canyon", "Canyon", rep("Empty", 21))
-PreSens.Respiration2(infile = input, outfile = output, start = 10,
-                     end = 60, name.in = in.name)
+PreSens.Respiration2(infile = input, outfile = output, start = 70,
+                     end = 90, name.in = in.name)
 
 # HMWF 2012 Set 1 Day 2
 input  <-  "../data/PreSens/HMWF2012_171_Oxygen.txt"
@@ -84,8 +87,8 @@ in.name <- c(rep("Empty", 3), rep("SecondPine", 3),
              rep("Empty", 3), rep("UpperPine", 3),
              rep("Empty", 3), rep("Ann", 3),
              rep("Empty", 3), rep("Mountain", 3))
-PreSens.Respiration2(infile = input, outfile = output, start = 50,
-                     end = 110, name.in = in.name)
+PreSens.Respiration2(infile = input, outfile = output, start = 70,
+                     end = 90, name.in = in.name)
 
 # HMWF 2012 Set 2 Day 1
 input  <-  "../data/PreSens/HMWF2012_189_Oxygen.txt"
@@ -94,18 +97,18 @@ in.name <- c(rep("Howe", 3), rep("Empty", 3),
              rep("Rush", 3), rep("Empty", 3),
              rep("Pony", 3), rep("Empty", 3),
              rep("Empty", 3), rep("Empty", 3))
-PreSens.Respiration2(infile = input, outfile = output, start = 60,
-                     end = 120, name.in = in.name)
+PreSens.Respiration2(infile = input, outfile = output, start = 70,
+                     end = 90, name.in = in.name)
 
-# HMWF 2012 Set 2 Day 1
+# HMWF 2012 Set 2 Day 2
 input  <-  "../data/PreSens/HMWF2012_189_Oxygen.txt"
 output <-  "../data/PreSens/HMWF2012_Day4_BR.txt"
 in.name <- c(rep("Empty", 3), rep("Ives", 3),
              rep("Empty", 3), rep("Lily", 3),
              rep("Empty", 3), rep("Empty", 3),
              rep("Empty", 3), rep("Empty", 3))
-PreSens.Respiration2(infile = input, outfile = output, start = 80,
-                     end = 140, name.in = in.name)
+PreSens.Respiration2(infile = input, outfile = output, start = 110,
+                     end = 130, name.in = in.name)
 
 # Import Individual Output Files
 hmwf2011a <- read.csv("../data/PreSens/HMWF2011_Day1_BR.txt")
