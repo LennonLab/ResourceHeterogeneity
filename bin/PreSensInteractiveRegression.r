@@ -18,7 +18,7 @@
 PreSens.Respiration <- function(infile = " ", outfile = " ", in.format = "Rows"){
 # Load Dependencies
   require("rpanel")||install.packages("rpanel");require("rpanel")
-  require("xlsx")||install.packages("xlsx");require("xlsx")
+  # require("xlsx")||install.packages("xlsx");require("xlsx")
 
 # Global Options
   options(digits=6)
@@ -79,7 +79,17 @@ PreSens.Respiration <- function(infile = " ", outfile = " ", in.format = "Rows")
   samples <- as.factor(colnames(data.in)[3:26])
 
 # Create Plotting Window
+  platform <- .Platform$OS.type
+  OS <- (Sys.info()['sysname'][[1]])
+  if (platform == "unix") {
+  if (OS == "Darwin") {
+    quartz()
+  }else{.
+    X11()
+  }} else {
   windows()
+  }
+  
   par(las=1)
   par(fig=c(0,1,0, 1), new = F)
   par(ps=9); par(cex.axis=c(0.9)); par(cex.lab=c(0.9)); par(oma=c(3,1,1,0.5)); par(mar=c(4,4,2,1))

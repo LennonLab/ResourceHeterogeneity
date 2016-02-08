@@ -16,6 +16,18 @@ Much is already know about how spatial gradients in resource availability contri
 However, we are begining to appreciate the molecular diversity within the resource pool.
 In this study, we explore how both the concentration and diversity of resources contribute to the structure and function of aquatic microbial communities. 
 
+We explore three hypotheses:
+
+1. Is there a relationship between resource concentration and diversity?
+  + Dilution Hypothesis: Arrieta et al. 2015 Science
+  
+2. Do the concentrations and diversity of resources explain differences between communities?
+  + Resource Heterogeneity Hypothesis
+  
+3. Do concentration and diversity explain different aspects of diversity
+  + Grinnellian (environmental habitat) vs. Eltonian (food habitat) Niche Hypothesis
+  + Resource Substitution Hypothesis
+
 # Initial Setup
 ```{r results='hide', message=FALSE}
 rm(list=ls())
@@ -35,19 +47,144 @@ require("png")
 require("grid")
 require("vegan")
 require("RgoogleMaps")
+library("maps")
+library("mapdata")
+require("maptools")
 ```
 
-# Supplemental Figure 1: Study System Map
+# Study System Map
 We sampled 10 lakes in the Huron Mountains of Michigan. 
 The Huron Mountains are located in the Superior Bedrock Uplands region of the Michigan Upper Peninsula (Schaetzl et al 2013).
-The region is classified as ....
-The forests around the lakes are ....
-The wetershed is ....
+
+The region is classified as Superior Bedrock Uplands
+The forests around the lakes are old-growth hemlock-nothern hardwoods (Kerry Woods)
+The lakes are part of the Pine River Watershed which drains into Lake Superior (see: www.co.marquette.mi.us/departments/plannings/docs/watershed.pdf)
+
+# Lake Information
 ```{r}
-newmap <- GetMap(center = c(46.86, -87.89), zoom = 13, destfile = "../figures/Supp1.png",
-                 maptype = "terrain", GRAYSCALE = FALSE)
-PlotOnStaticMap(newmap, zoom = 13, cex = 2, col = "blue")
+lake.data <- read.csv("../data/lake_data.txt", row.names=1)
+lake.data$area <- rep(NA, dim(lake.data)[1])
+
+# Shape file source: http://www.mcgi.state.mi.us/mgdl/?rel=ext&action=sext
+shape <- readShapePoly("../data/lake_polygons_200403/lake_polygons_200403.shp", 
+                       IDvar = "UNIQUE_ID")
+
+# Extract Areas
+grp.opt <- shape$COUNTY == "Marquette" & shape$FMU == "LSW"
+lake.data$area[1] <- shape$AREA[which(shape$NAME == "Lake Ann" & grp.opt)]
+lake.data$area[2] <- shape$AREA[which(shape$NAME == "Canyon Lake" & grp.opt)]
+lake.data$area[3] <- shape$AREA[which(shape$NAME == "Howe Lake" & grp.opt)]
+lake.data$area[4] <- shape$AREA[which(shape$NAME == "Ives Lake" & grp.opt)]
+lake.data$area[5] <- shape$AREA[which(shape$NAME == "Lily Pond" & grp.opt)]
+lake.data$area[6] <- shape$AREA[which(shape$NAME == "Mountain Lake" & grp.opt)]
+lake.data$area[7] <- 2000 # estimate...smallest and not in GIS dataset
+lake.data$area[8] <- shape$AREA[which(shape$NAME == "Rush Lake" & grp.opt)]
+lake.data$area[9] <- shape$AREA[which(shape$NAME == "Second Lake" & grp.opt)]
+lake.data$area[10] <- shape$AREA[which(shape$NAME == "Third Lake" & grp.opt)]
+
+# Convert sq m to sq km
+lake.data$area <- lake.data$area / 1000000
+
+# Notes on how to get shapefile info
+# str(shape, max.level=4)
+# Attempt to find Pony
+# plot(shape[which(shape$LAKE_NAME == "no name" & 
+# shape$COUNTY == "Marquette" & shape$FMU == "LSW"), ])
+
+# Plot from shapefile (just to check)
+#  grp.opts <- shape$COUNTY == "Marquette" & shape$FMU == "LSW"
+#  plot(shape[c(
+#   which(shape$NAME == "Ives Lake" & grp.opts),
+#   which(shape$NAME == "Mountain Lake" & grp.opts),
+#   which(shape$NAME == "Howe Lake" & grp.opts),
+#   which(shape$NAME == "Rush Lake" & grp.opts),
+#   which(shape$NAME == "Lake Ann" & grp.opts),
+#   which(shape$NAME == "Canyon Lake" & grp.opts),
+#   which(shape$NAME == "Lily Pond" & grp.opts),
+#   which(shape$NAME == "Second Lake" & grp.opts),
+#   which(shape$NAME == "Third Lake" & grp.opts)),])
 ```
+
+## Supplemental Table 1: Lake Properties
+```{r, results="asis"}
+addtorow <- list()
+addtorow$pos <- list(0)
+addtorow$command <- c("Lake & Depth (m) & Area (Km$^2$) \\\\\n")
+lake.tab <- xtable(lake.data, digits = c(0,1,3))
+align(lake.tab) <- "ccc"
+print(lake.tab, add.to.row = addtorow, include.colnames = FALSE, 
+      type= "latex", file="../tables/SuppTable1.tex", 
+      hline.after = c(-1, -1, 0, nrow(lake.tab)))
+print(lake.tab, add.to.row = addtorow, include.colnames = FALSE, 
+      comment = FALSE, hline.after = c(-1, -1, 0, nrow(lake.tab)))
+```
+
+## Supplemental Figure 1: Study System Map
+```{r, results='hide'}
+png(filename="../figures/Supp1.png",
+    width = 1800, height = 900, res = 96*2)
+par(opar)
+par(mfrow = c(1,1), mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0) + 0.5)
+
+newmap1 <- GetMap(center = c(46.86, -87.93), zoom = 13, 
+                 maptype = "terrain", GRAYSCALE = FALSE, frame = FALSE,
+                 path = "&style=feature:all|element:labels|visibility:off")
+newmap2 <- GetMap(center = c(46.86, -87.82), zoom = 13, 
+                 maptype = "terrain", GRAYSCALE = FALSE, frame = FALSE,
+                 path = "&style=feature:all|element:labels|visibility:off")
+
+layout( matrix(c(1,1,1,1,1,1,
+                 1,1,1,1,1,1,
+                 1,1,1,1,1,1,
+                 2,2,2,2,2,2,
+                 2,2,2,3,3,3,
+                 2,2,2,3,3,3), 6, 6, byrow = FALSE),
+        widths = rep(2, 6), heights = rep(2, 6))
+
+# Left Side
+PlotOnStaticMap(newmap1, zoom = 13, cex = 2, col = "blue")
+text(-120, 270, "Howe", col="red", cex=1.2)
+text(100, 255, "Rush", col="red", cex=1.2)
+text(105, 55, "Mountain", col="red", cex=1.2)
+arrows(10, 100, x1 = -10, y1 = 100, length=0.05, col = "red", lwd = 2)
+text(-36, 100, "Ann", col="red", cex=1.2)
+arrows(60, 230, x1 = 40, y1 = 230, length=0.05, col = "red", lwd = 2)
+text(8, 230, "Pony", col="red", cex=1.2)
+arrows(55, -230, x1 = 75, y1 = -230, length=0.05, col = "red", lwd = 2)
+text(120, -230, "Canyon", col="red", cex=1.2)
+
+# Right Side
+PlotOnStaticMap(newmap2, zoom = 13, cex = 2, col = "blue")
+text(-180, -90, "Ives", col="red", cex=1.2)
+arrows(-160, 20, x1 = -140, y1 = 20, length = 0.05, col = "red", lwd = 2)
+text(-75, 20, "Upper Pine", col="red", cex = 1.2)
+arrows(-220, 80, x1 = -200, y1 = 80, length = 0.05, col = "red", lwd = 2)
+text(-125, 80, "Second Pine", col="red", cex = 1.2)
+arrows(-55, -105, x1 = -35, y1 = -105, length = 0.05, col = "red", lwd = 2)
+text(-12, -105, "Lily", col="red", cex=1.2)
+
+# Compass Arrow
+arrows(280, 280, 280, 240, length = 0.1, col = "black", lwd = 3)
+text(280, 220, "N", col = "black", cex = 1.5)
+
+# Inset
+map("state", "Michigan", col = "gray80", fill = TRUE, 
+    xlim = c(-92,-82), ylim = c(41, 48))
+points(-87.89, 46.8, pch = 20, col = "red")
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices 
+par(opar)
+```
+
+```{r fig.width=7, fig.height=3.5,echo=FALSE,fig.cap="Study System Map"}
+img <- readPNG("../figures/Supp1.png")
+grid.raster(img)
+```
+
+This study system is know to have differences in the concentrations of growth limiting nutrients.
+Specifically, the concentrations of dissolved organic carbon and phosphorus differ between the lakes.
+We also have data for total nitrogen, but the values are odd and may not be reasonable for interpretation.
 
 # Lake Nutrient Concentrations
 ```{r}
@@ -124,7 +261,7 @@ nuts <- droplevels(nuts)
 ```
 
 ## Table 1: Lake Nutrients
-```{r}
+```{r, results="asis"}
 nuts2 <- data.frame(matrix(NA, 10, 4))
 row.names(nuts2) <- levels(nuts$sample)
 colnames(nuts2) <- c("DOC11", "DOC12", "TP11", "TP12")
@@ -137,18 +274,21 @@ for (i in row.names(nuts2)){
 
 addtorow <- list()
 addtorow$pos <- list(0, 0)
-addtorow$command <- c("& \\multicolumn{2}{c}{DOC (mg C/L)} & 
-                      \\multicolumn{2}{c}{TP ($\\mu$g P/L)} \\\\\n", 
+addtorow$command <- c("& \\multicolumn{2}{c}{DOC (mg C L$^{-1}$)} & 
+                      \\multicolumn{2}{c}{TP ($\\mu$g P L$^{-1}$)} \\\\\n", 
                       "Lake & 2011 & 2012 & 2011 & 2012 \\\\\n")
 nut.tab <- xtable(nuts2)
 align(nut.tab) <- "crrrr"
 print(nut.tab, add.to.row = addtorow, include.colnames = FALSE, 
-      type= "latex", file="../tables/table1.tex")
-print(nut.tab, add.to.row = addtorow, include.colnames = FALSE)
+      type= "latex", file="../tables/table1.tex", 
+      hline.after = c(-1, -1, 0, nrow(nut.tab)))
+print(nut.tab, add.to.row = addtorow, include.colnames = FALSE, 
+      comment = FALSE, hline.after = c(-1, -1, 0, nrow(nut.tab)))
 ```
 
+
 ## Figure 1: Lake Nutrients
-```{r results='hide'}
+```{r, results='hide'}
 png(filename="../figures/Figure1.png",
     width = 1600, height =1200, res = 96*2)
 par(opar)
@@ -161,48 +301,72 @@ labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
 # DOC Plot
 plot(DOC$conc ~ DOC$sample, ylim = c(0, 35), las = 1, 
      xaxt="n", xlab = "", yaxt="n", ylab = "")
-axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck = -0.02, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck = 0.01, labels = F, cex.axis = 1, 
+     at = c(1:10))
 axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1.2, las = 1, 
      at = c(0, 10, 20, 30))
-axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 10, 20, 30))
-axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0, 10, 20, 30))
-axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 10, 20, 30))
-mtext(side = 2, expression(paste("DOC (mg C L" ^-1, ")", sep="")), line = 3.5, cex = 1)
+axis(side=2, lwd.ticks = 2, tck = 0.01, labels = F, cex.axis = 1, 
+     at = c(0, 10, 20, 30))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
+     at = c(0, 10, 20, 30))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(0, 10, 20, 30))
+mtext(side = 2, expression(paste("DOC (mg C L" ^-1, ")", sep="")), 
+      line = 3.5, cex = 1)
 legend("topleft", "A", bty = "n", x.intersp = 0, cex = 1.25)
 box(lwd = 2)
 
 # Total Nitrogen Plot
 plot(TN$conc ~ TN$sample, ylim = c(0,0.65), las = 1, 
      xaxt="n", xlab = "", yaxt="n", ylab = "")
-axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(1:10))
 axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1.2, las = 1, 
      at = c(0.0, 0.2, 0.4, 0.6))
-axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0.0, 0.2, 0.4, 0.6))
-axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0.0, 0.2, 0.4, 0.6))
-axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0.0, 0.2, 0.4, 0.6))
-mtext(side = 2, expression(paste("TN (mg N L" ^-1, ")")), line = 3.5, cex = 1)
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(0.0, 0.2, 0.4, 0.6))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
+     at = c(0.0, 0.2, 0.4, 0.6))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(0.0, 0.2, 0.4, 0.6))
+mtext(side = 2, expression(paste("TN (mg N L" ^-1, ")")), 
+      line = 3.5, cex = 1)
 legend("topleft", "B", bty = "n", x.intersp = 0, cex = 1.25)
 box(lwd = 2)
 
 # Total Phosphorus Plot                       
 plot(TP$sample, TP$conc, ylim = c(0,50), las = 1, 
      xaxt="n", xlab = "", yaxt="n", ylab = "")
-axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(1:10))
 axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1.2, las = 1, 
      at = c(0, 20, 40))
-axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 20, 40))
-axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0, 20, 40))
-axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 20, 40))
-mtext(side = 2, expression(paste("TP (",mu, "g P L" ^-1, ")")), line = 3.5, cex = 1)
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(0, 20, 40))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
+     at = c(0, 20, 40))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(0, 20, 40))
+mtext(side = 2, expression(paste("TP (",mu, "g P L" ^-1, ")")), 
+      line = 3.5, cex = 1)
 mtext(side = 1, text = labs, line = 1, at = seq(1:10), padj = 0.5, cex = 0.8)
 legend("topleft", "C", bty = "n", x.intersp = 0, cex = 1.25)
 box(lwd = 2)
@@ -217,6 +381,10 @@ img <- readPNG("../figures/Figure1.png")
 grid.raster(img)
 ```
 
+But there are other differences between these lakes. 
+For example, algal derived resources differ (as infered from chlorophyll *a* concentrations).
+Additionally, bacterial respiration differs between lakes though there is also temperature dependence with these values as well.
+
 # Chlorophyll a and Bacterial Respiration
 ```{r}
 chla <- read.delim("../data/ChlorophyllA.txt")
@@ -224,7 +392,7 @@ resp <- read.delim("../data/Respiration.txt")
 ```
 
 ## Table 2: Chlorophyll a and BR
-```{r}
+```{r, results="asis"}
 eco <- data.frame(matrix(NA, 10, 4))
 row.names(eco) <- levels(chla$Lake)
 colnames(eco) <- c("Chl11", "Chl12", "Resp11", "Resp12")
@@ -236,15 +404,19 @@ for (i in row.names(eco)){
 }
 
 addtorow <- list()
-addtorow$pos <- list(0, 0)
-addtorow$command <- c("& \\multicolumn{2}{c}{Chl a ($\\mu$g/L)} & 
-                      \\multicolumn{2}{c}{Resp. (mg O2 Hr-1)} \\\\\n", 
+addtorow$pos <- list(0, 0, 0)
+addtorow$command <- c("& \\multicolumn{2}{c}{Chl $\\emph{a}$} & 
+                      \\multicolumn{2}{c}{Resp.} \\\\\n", 
+                      "& \\multicolumn{2}{c}{($\\mu$g L$^{-1}$)} & 
+                      \\multicolumn{2}{c}{($\\mu$M O$_2$ Hr$^{-1}$)} \\\\\n",
                       "Lake & 2011 & 2012 & 2011 & 2012 \\\\\n")
 eco.tab <- xtable(eco)
-align(eco.tab) <- "crrrr"
+align(eco.tab) <- c("c ","r ", "r ", "r ", "r ")
 print(eco.tab, add.to.row = addtorow, include.colnames = FALSE, 
-      type= "latex", file="../tables/table2.tex")
-print(eco.tab, add.to.row = addtorow, include.colnames = FALSE)
+      type= "latex", file="../tables/table2.tex", 
+      hline.after = c(-1, -1, 0, nrow(eco.tab)))
+print(eco.tab, add.to.row = addtorow, include.colnames = FALSE, 
+      comment = FALSE, hline.after = c(-1, -1, 0, nrow(eco.tab)))
 ```
 
 ## Figure 2: Ecosystem
@@ -253,10 +425,10 @@ chla2 <- chla[chla$Year == "2012", ]
 resp2 <- resp[resp$year == "2012", ]
 
 png(filename="../figures/Figure2.png",
-    width = 1600, height =900, res = 96*2)
+    width = 1600, height =1200, res = 96*2)
 par(opar)
 par(mfrow = c(1,1), mar = c(0, 6, 0, 0) + 0.5, oma = c(4, 0, 1, 1) + 0.5)
-layout(rbind(1, 2), height = c(3, 3)) 
+layout(rbind(1, 2), height = c(4, 4)) 
 
 labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
          "Second\nPine","Upper\nPine")
@@ -268,28 +440,42 @@ axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
 axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
 axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1.2, las = 1, 
      at = c(0, 10, 20))
-axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 10, 20, 30))
-axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0, 10, 20, 30))
-axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 10, 20, 30))
-mtext(side = 2, expression(paste("Chl a (mg C L" ^-1, ")", sep="")), line = 3.5, cex = 1)
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(0, 10, 20, 30))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
+     at = c(0, 10, 20, 30))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(0, 10, 20, 30))
+mtext(side = 2, expression(paste("Chl a (mg C L" ^-1, ")", sep="")), 
+      line = 3.5, cex = 1)
 legend("topleft", "A", bty = "n", x.intersp = 0, cex = 1.25)
 box(lwd = 2)
 
 # Bacterial Respiration
-plot(resp2$rate ~ resp2$sample, ylim = c(0,2), las = 1, 
+plot(resp2$rate ~ resp2$sample, ylim = c(0.5,2), las = 1, 
      xaxt="n", xlab = "", yaxt="n", ylab = "")
-axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(1:10))
 axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1.2, las = 1, 
      at = c(0, 1, 2))
-axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 1, 2))
-axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1:10))
-axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0, 1, 2))
-axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 1, 2))
-mtext(side = 2, expression(paste("Resp. (", mu, "M O"[2], " Hr" ^-1, ")")), line = 3.5, cex = 1)
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(0, 1, 2))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(1:10))
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
+     at = c(0, 1, 2))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
+     at = c(0, 1, 2))
+mtext(side = 2, expression(paste("Resp. (", mu, "M O"[2], " Hr" ^-1, ")")), 
+      line = 3.5, cex = 1)
 mtext(side = 1, text = labs, line = 1, at = seq(1:10), padj = 0.5, cex = 0.8)
 legend("topleft", "B", bty = "n", x.intersp = 0, cex = 1.25)
 box(lwd = 2)
@@ -304,7 +490,11 @@ img <- readPNG("../figures/Figure2.png")
 grid.raster(img)
 ```
 
+
+
 # Patterns of Bacterial Diversity
+The major difference that we are interested in is bacterial diversity across the sites.
+We know that the lakes have different microbiomes.
 
 ## Import Raw Data
 ```{r}
@@ -492,26 +682,56 @@ par(opar)
 # Define Plot Parameters
 par(mar = c(5, 5, 1, 1) + 0.1)
 
+# Define Plot Symbols
+lake.pch <- rep(NA, length(design$Molecule))
+for (i in 1:length(design$Molecule)){
+if (design$Molecule[i] == "DNA"){
+    lake.pch[i] <- 16
+  }else{
+    lake.pch[i] <- 17
+  }}
+
+
 # Initiate Plot
 plot(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2], 
-     ylim = c(-0.3, 0.25), xlim = c(-0.3, 0.6), 
+     ylim = c(-0.31, 0.25), xlim = c(-0.3, 0.6), 
      xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
      ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
-     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
+     pch = lake.pch, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, 
+     axes = FALSE)
 
 # Add Axes
 axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1, las = 1)
 axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1, las = 1)
+axis(side = 3, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
+axis(side = 4, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
+axis(side = 1, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
+axis(side = 2, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
+axis(side = 3, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
+axis(side = 4, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
 abline(h = 0, v = 0, lty = 3)
 box(lwd = 2)
 
 # Add Points & Labels
 points(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2],
-       pch = 19, cex = 3, bg = "gray", col = "gray")
+       pch = lake.pch, cex = 2.5, bg = "gray", col = "gray")
 
 ordiellipse(cbind(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2]),
     design$Lake, kind="se", conf=0.95,
-    lwd=2, draw = "polygon", col="gray", border = "black", label=TRUE, cex=1, bty = 'n')
+    lwd=2, draw = "polygon", col="gray", border = "black", label=FALSE, 
+    cex=1, bty = 'n')
+
+# Add Labels
+text(0.38, 0.13, "Lily")
+text(0.56, -0.11, "Pony")
+text(0.05, -0.19, "Upper Pine")
+text(-0.18, -0.29, "Second Pine")
+text(0, -0.05, "Mountain")
+text(-0.25, 0, "Ives")
+text(0.1, 0.1, "Canyon")
+text(-0.25, 0.1, "Howe")
+text(-0.2, 0.225, "Rush")
+text(-0.05, 0.2, "Ann")
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices
@@ -523,8 +743,8 @@ img <- readPNG("../figures/Figure4.png")
 grid.raster(img)
 ```
 
-## Statistical Analyses
 
+## Statistical Analyses
 What are the differences between lakes and does resource concentration explain differences
 
 ```{r}
@@ -534,13 +754,27 @@ nuts2$molecule <- rep(c("DNA", "RNA"), 20)
 nuts2 <- nuts2[order(nuts2$sample, nuts2$year, nuts2$molecule), ]
 as.character(nuts2$sample) == as.character(design$Lake)
 
+plot(density(log10(nuts2$DOC)))
+plot(density(log10(nuts2$TN)))
+plot(density(log10(nuts2$TP)))
+
+# Nutrient Z-Transformation
+nuts2$DOC.z <- scale(log(nuts2$DOC))
+nuts2$TP.z <- scale(log(nuts2$TP))
+nuts2$TN.z <- scale(log1p(nuts2$TN))
+
 beta.dis <- betadisper(vegdist(OTUsREL.log, "bray"), design$Lake)
 permutest(beta.dis)
 
-adonis(OTUsREL.log ~ design$Lake + design$Molecule + design$Year, method = "bray", permutations = 999)
+adonis(OTUsREL.log ~ design$Lake + design$Molecule, method = "bray", permutations = 999)
 
-chem.dbrda <- capscale(OTUsREL.log ~ scale(log(nuts2$DOC)) + scale(log1p(nuts2$TN)) + 
-                         scale(log(nuts2$TP)), add = T, distance = "bray")
+lake.dbrda <- capscale(OTUsREL.log ~ design$Lake + design$Molecule, distance = "bray", add = T)
+anova(lake.dbrda)
+RsquareAdj(lake.dbrda)
+coef(lake.dbrda)
+
+chem.dbrda <- capscale(OTUsREL.log ~ nuts2$DOC.z + nuts2$TP.z + nuts2$TN.z, 
+                       add = T, distance = "bray")
 anova(chem.dbrda)
 RsquareAdj(chem.dbrda)
 coef(chem.dbrda)
@@ -555,11 +789,72 @@ summary(lmod)
 
 ## Generalists
 ```{r}
-active <- OTUs[design$Molecule == "RNA", ]
-activePA <- (active > 0) * 1
+lake.yr <- paste(design$Lake[design$Molecule == "DNA"], 
+                 design$Year[design$Molecule == "DNA"], sep = "")
 
 total <- OTUs[design$Molecule == "DNA", ]
+row.names(total) <- lake.yr
 totalPA <- (total > 0) * 1
+
+active.rna <- OTUs[design$Molecule == "RNA", ]
+row.names(active.rna) <- lake.yr
+activePA.2 <- (active.rna > 0) * 1
+active <- total * (activePA)
+row.names(active) <- lake.yr
+
+activePA.2 <- (active.rna > (total * 0.25)) * 1
+active.2 <- total * (activePA.2)
+row.names(active.2) <- lake.yr
+
+per <- c(0.001, 0.005, 0.01, 0.05, 0.10)
+per.act <- matrix(NA, dim(total)[1], length(per))
+per.actT <- matrix(NA, dim(total)[1], length(per))
+colnames(per.act) <- per
+colnames(per.actT) <- per
+
+  for (i in 1:length(per)){
+  activePA.temp <- (active.rna > (total * per[i])) * 1
+  active.temp <- total * activePA.temp
+  per.act[,i] <- rowSums(active.temp) / rowSums(total)
+  per.actT[,i] <- rowSums(activePA.temp) / rowSums(totalPA)
+  }
+
+mean.per.act <- colMeans(per.act)
+se.per.act <- apply(per.act, 2, se)
+
+mean.per.actT <- colMeans(per.actT)
+se.per.actT <- apply(per.actT, 2, se)
+
+par(mar = c(4.5,5,1,1) + 0.1)
+plot(mean.per.act ~ per, las = 1, type = "n",
+     ylim = c(0.875, 0.99), 
+     xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+
+arrows(x0 = per, y0 = mean.per.act, y1 = mean.per.act + se.per.act, angle= 90, length = 0.1, lwd = 2)
+arrows(x0 = per, y0 = mean.per.act, y1 = mean.per.act - se.per.act, angle= 90, length = 0.1, lwd = 2)
+points(per, mean.per.act, pch = 15, col = "firebrick", cex = 1.25)
+
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = T, cex.axis = 1)
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
+axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1, las = 1, 
+     at = c(0.89, 0.92, 0.95, 0.98))
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0.89, 0.92, 0.95, 0.98))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1)
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0.89, 0.92, 0.95, 0.98))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0.89, 0.92, 0.95, 0.98))
+mtext(side = 2, "Percent Active", line = 3, cex = 1.5)
+mtext(side = 1, "Cutoff", line = 2.5, cex = 1.5)
+box(lwd = 2)
+
+
+
+
+plot(mean.per.actT ~ per)
+
+inactive <- total * (1 - activePA)
+inactivePA <- (inactive > 0) * 1
+
 
 gens <- data.frame(matrix(NA, 21, 3))
 colnames(gens) <- c("sites", "taxaA", "taxaT")
@@ -575,14 +870,30 @@ par(mar = c(5, 5, 1, 1) + 0.1)
 plot(gens$taxaA ~ gens$sites, xlab = "Number of Sites", ylab = "Number of Taxa")
 plot(gens$taxaT ~ gens$sites, xlab = "Number of Sites", ylab = "Number of Taxa")
 
-# Total Taxa
-total <- OTUs[design$Molecule == "DNA", ]
-totalPA <- (total > 0) * 1
-
 # Inactive Taxa
 inactivePA <- totalPA - activePA
-inactivePA <- pmax(inactivePA, 0)
-sum(colSums(inactivePA)  > 10)
+inactive <- total * inactivePA
+
+# Species Abundance Distributions for Active and Inactive Taxa
+par(mar = c(4, 5, 1, 1) + 0.1)
+plot(sort(log10(colSums(active)), decreasing = T), col = "darkolivegreen3",
+     las = 1, xaxt="n", xlab = "", yaxt="n", ylab = "", xlim = c(0, 7000))
+points(sort(log10(colSums(inactive)), decreasing = T), col = "cornflowerblue")
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = T, cex.axis = 1, at = c(0, 1500, 3000, 4500, 6000))
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 1500, 3000, 4500, 6000))
+axis(side=2, lwd.ticks = 2, labels = c("10", "1000", "100000"), cex.axis = 1, las = 1, 
+     at = c(1, 3, 5))
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1, 3, 5))
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0, 1500, 3000, 4500, 6000))
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 1500, 3000, 4500, 6000))
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1, 3, 5))
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1, 3, 5))
+mtext(side = 2, "Abundance", line = 3.5, cex = 1.5)
+mtext(side = 1, "Index", line = 2.5, cex = 1)
+legend("topright", c("Inactive", "Active"), fill = c("cornflowerblue", "darkolivegreen3"), bty = "n")
+box(lwd = 2)
+
+pro.act <- rowSums(active)/rowSums(total)
 
 rowSums(inactivePA)/rowSums(totalPA)
 rowSums(activePA)/rowSums(totalPA)
@@ -659,6 +970,8 @@ for(i in 1:dim(res)[1]){
   resREL[i,] <- res[i,]/sum(res[i,])
 }
 
+# Log Transform Relative Resource Abundance
+resREL.log <- decostand(resREL, method="log")
 ```
 
 ## Calculate Alpha Diversity
@@ -714,6 +1027,14 @@ evenmod <- lm(res.div$res.simpsE ~ nuts2012$DOC*nuts2012$TN*nuts2012$TP)
 richmod <- lm(res.div$S.res ~ nuts2012$DOC*nuts2012$TN*nuts2012$TP)
 summary(evenmod)
 summary(richmod)
+
+evenmod <- lm(res.div$res.simpsE ~ log(nuts2012$DOC))
+richmod <- lm(res.div$S.res ~ log(nuts2012$DOC))
+summary(evenmod)
+summary(richmod)
+
+xtable(summary(evenmod))
+
 ```
 
 ## Hypothesis that resource diversity influences consumer diversity
@@ -730,6 +1051,15 @@ rich.mod2 <- lm(alpha.div2012$S.obs ~ res.div$res.simpsE)
 summary(rich.mod1)
 summary(rich.mod2)
 ```
+
+```{r}
+plot((rowSums(active.NPA)/rowSums(totalPA))[seq(2, 20, by = 2)] ~ res.div$res.simpsE,
+     xlab = "Resource Evennes", ylab = "Proportion of Active Taxa")
+res.ev <- lm((rowSums(active.NPA)/rowSums(totalPA))[seq(2, 20, by = 2)] ~ res.div$res.simpsE)
+abline(res.ev)
+
+```
+
 
 ## Between site comparisions of resources
 ```{r}
@@ -769,8 +1099,8 @@ png(filename="../figures/Figure6.png",
 par(mar = c(5, 5, 1, 1) + 0.1)
 
 # Initiate Plot
-plot(res.pcoa$points[ ,1], res.pcoa$points[ ,2], ylim = c(-0.2, 0.4),
-     xlim = c(-0.5, 0.5), 
+plot(res.pcoa$points[ ,1], res.pcoa$points[ ,2], ylim = c(-0.25, 0.3),
+     xlim = c(-0.4, 0.4), 
      xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
      ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
      pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
@@ -840,8 +1170,55 @@ lmod <- as.mlm(chem.dbrda)
 lmod
 summary(lmod)
 
+chem.dbrda <- capscale(resREL ~ log(nuts2012$DOC), add =T, distance = "bray")
+anova(chem.dbrda)
+RsquareAdj(chem.dbrda)
+coef(chem.dbrda)
+
+anova.cca(chem.dbrda, step=1000)
+plot(chem.dbrda)
+lmod <- as.mlm(chem.dbrda)
+lmod
+summary(lmod)
+
+
+
 require(cocorresp)
 #test1 <- coca(OTUsREL2012.RNA, resREL, n.axes = 4)
+
+# Variance Partitioning
+
+nuts3 <- cbind(scale(log(nuts2012$DOC)), scale(log1p(nuts2012$TP)))
+# nuts3 <- scale(log(nuts2012$DOC))
+rownames(nuts3) <- nuts2012$sample
+
+res.db <- vegdist(resREL, method = "altGower")
+res.pcoa <- cmdscale(res.db, eig = TRUE, k = 5) 
+
+OTUsREL.log2012 <- OTUsREL.log[design$Year == "2012" & design$Molecule == "RNA", ]
+OTUsREL2012 <- OTUsREL[design$Year == "2012" & design$Molecule == "RNA", ]
+spe.pcoa <- cmdscale(vegdist(OTUsREL2012, method="bray"), eig = TRUE, k = 5)
+
+
+# Active
+HMWFvarpart <- varpart(spe.pcoa$points[, 1:2], nuts3, res.pcoa$points[, 1:2])
+HMWFvarpart <- varpart(OTUsREL.log2012, nuts3, res.pcoa$points)
+HMWFvarpart
+
+png(filename="../figures/Figure7.png",
+    width = 1200, height = 1200, res = 96*2)
+
+plot(HMWFvarpart)
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+par(opar)
+
+anova.cca(rda(spe.pcoa$points, nuts3), step=1000) #[a+b]
+anova.cca(rda(spe.pcoa$points, res.pcoa$points), step=1000) #[b+c]
+anova.cca(rda(spe.pcoa$points, cbind(nuts3, res.pcoa$points)), step=1000) #[a+b+c]
+anova.cca(rda(spe.pcoa$points, res.pcoa$points, nuts3), step=1000) # [a]
+anova.cca(rda(spe.pcoa$points, nuts3, res.pcoa$points), step=1000) # [c]
 
 ```
 
@@ -870,7 +1247,7 @@ What are the similar groups of resources: cluster resources based on abundance
 Can we cluster based on chemical data?
 
 ```{r}
-resREL
+
 res.dist <- vegdist(t(resREL), "bray")
 
 res2.pcoa <- cmdscale(res.dist, eig = TRUE, k = 3) 
@@ -916,7 +1293,7 @@ res.pcoa <- cmdscale(res.dist2, eig = TRUE, k = 3)
 # Clustering
 res.k <- kmeans(resREL, 5, iter.max = 10)
 
-plot(resREL, col = res.k$cluster)
+# plot(resREL, col = res.k$cluster)
 
 
 
