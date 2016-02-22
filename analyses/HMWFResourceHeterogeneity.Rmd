@@ -631,6 +631,13 @@ img <- readPNG("../figures/Figure3.png")
 grid.raster(img)
 ```
 
+## Lake Phylogenetic Diversity
+```{r}
+
+
+
+
+```
 
 ## Calculate and Visualize Beta Diversity
 ```{r}
@@ -798,7 +805,7 @@ totalPA <- (total > 0) * 1
 
 active.rna <- OTUs[design$Molecule == "RNA", ]
 row.names(active.rna) <- lake.yr
-activePA.2 <- (active.rna > 0) * 1
+activePA <- (active.rna > 0) * 1
 active <- total * (activePA)
 row.names(active) <- lake.yr
 
