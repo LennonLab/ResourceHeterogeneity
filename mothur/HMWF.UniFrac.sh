@@ -7,4 +7,4 @@
 cd /N/dc2/projects/Lennon_Sequences/2016_ResourceHeterogeneity
 module load gcc/4.9.2
 module load mothur/1.36.1
-mothur "#unifrac.weighted(tree=HMWF.bac.0.03.gg.tree, count=HMWF.final.0.03.count_table, random=t, processors=8, distance=lt)"
+mothur "#unifrac.weighted(tree=HMWF.bac.0.03.gg.tree, count=HMWF.final.0.03.count_table, processors=8, distance=square)"

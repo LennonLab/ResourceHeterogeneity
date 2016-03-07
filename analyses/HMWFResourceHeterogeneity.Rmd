@@ -14,6 +14,8 @@ output:
 # Introduction
 Much is already know about how spatial gradients in resource availability contribution to the structure and fucntion of microbial communities.
 However, we are begining to appreciate the molecular diversity within the resource pool.
+Resources can be just as diverse as consumers and differ in their quality and availability to consumers.
+As such, resource diverse represents a mechanisms to understand spatial distirubitons of consumers.
 In this study, we explore how both the concentration and diversity of resources contribute to the structure and function of aquatic microbial communities. 
 
 We explore three hypotheses:
@@ -105,11 +107,15 @@ lake.data$area <- lake.data$area / 1000000
 #   which(shape$NAME == "Third Lake" & grp.opts)),])
 ```
 
-## Supplemental Table 1: Lake Properties
+## Supplemental Table 1: Lake Physical Properties
+### Note: depth represents the maximum depth recorded during sampling and thus does not reflect the true depth of the lake
+
+Add pH
+
 ```{r, results="asis"}
 addtorow <- list()
 addtorow$pos <- list(0)
-addtorow$command <- c("Lake & Depth (m) & Area (Km$^2$) \\\\\n")
+addtorow$command <- c("Lake & Depth$^*$ (m) & Area (Km$^2$) \\\\\n")
 lake.tab <- xtable(lake.data, digits = c(0,1,3))
 align(lake.tab) <- "ccc"
 print(lake.tab, add.to.row = addtorow, include.colnames = FALSE, 
@@ -185,6 +191,7 @@ grid.raster(img)
 This study system is know to have differences in the concentrations of growth limiting nutrients.
 Specifically, the concentrations of dissolved organic carbon and phosphorus differ between the lakes.
 We also have data for total nitrogen, but the values are odd and may not be reasonable for interpretation.
+The reason the nitrogen values are odd is because many were at the lower detection level of the instrument.
 
 # Lake Nutrient Concentrations
 ```{r}
@@ -286,7 +293,6 @@ print(nut.tab, add.to.row = addtorow, include.colnames = FALSE,
       comment = FALSE, hline.after = c(-1, -1, 0, nrow(nut.tab)))
 ```
 
-
 ## Figure 1: Lake Nutrients
 ```{r, results='hide'}
 png(filename="../figures/Figure1.png",
@@ -383,12 +389,16 @@ grid.raster(img)
 
 But there are other differences between these lakes. 
 For example, algal derived resources differ (as infered from chlorophyll *a* concentrations).
-Additionally, bacterial respiration differs between lakes though there is also temperature dependence with these values as well.
+Additionally, bacterial respiration differs between lakes though there is also temperature dependence with these values as well (temperature between years of sampling). 
 
-# Chlorophyll a and Bacterial Respiration
+# Chlorophyll a and Bacterial Respiration Ecosystem Measures
 ```{r}
 chla <- read.delim("../data/ChlorophyllA.txt")
 resp <- read.delim("../data/Respiration.txt")
+# npp
+# CO2 flux
+# EcoResp
+# DO
 ```
 
 ## Table 2: Chlorophyll a and BR
@@ -491,10 +501,10 @@ grid.raster(img)
 ```
 
 
-
 # Patterns of Bacterial Diversity
 The major difference that we are interested in is bacterial diversity across the sites.
 We know that the lakes have different microbiomes.
+These microbiomes can be influenced by physical, chemical and biological interactions within each lake.
 
 ## Import Raw Data
 ```{r}
@@ -522,8 +532,8 @@ OTU.tax <- read.tax(taxonomy = taxon, format = "rdp")
 OTUs.hmwf <- OTUs.in[rownames(design), ]
 
 # Remove OTUs with less than two occurences across all sites
-OTUs <- OTUs.hmwf[, which(colSums(OTUs.hmwf) >= 2)]
-# OTUs <- OTUs.hmwf[, colSums((OTUs.hmwf > 0) * 1)  >= 2 | colSums(OTUs.hmwf >= 10)]
+# OTUs <- OTUs.hmwf[, which(colSums(OTUs.hmwf) >= 2)]
+OTUs <- OTUs.hmwf[, colSums((OTUs.hmwf > 0) * 1)  >= 2 | colSums(OTUs.hmwf >= 10)]
 
 # Sequencing Coverage
 coverage <- rowSums(OTUs)
@@ -584,6 +594,10 @@ alpha.div <- alpha.div[order(alpha.div$Lake, alpha.div$Year, alpha.div$Molecule)
 
 ## Figure 3: Lake Alpha Diversity
 ```{r results='hide'}
+
+labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
+         "Second\nPine","Upper\nPine")
+
 png(filename="../figures/Figure3.png",
     width = 1600, height = 1100, res = 96*2)
 par(opar)
@@ -631,12 +645,28 @@ img <- readPNG("../figures/Figure3.png")
 grid.raster(img)
 ```
 
+## Alpha Diversity Statistics
+```{r}
+alpha.div
+div.mod1 <- aov(S.obs ~ Lake, data = alpha.div)
+TukeyHSD(div.mod1)
+div.mod2 <- aov(simpsE ~ Lake, data = alpha.div)
+TukeyHSD(div.mod2)
+```
+
+
+
 ## Lake Phylogenetic Diversity
 ```{r}
+require(picante)
 
+data(phylocom)
+phy <- phylocom$phylo
+comm <- phylocom$sample
+traits <- phylocom$traits
 
-
-
+# Import Tree with *ape* 
+hmwf.tree <- read.tree("../fasttree/HMWF.bac.0.03.gg.tree")
 ```
 
 ## Calculate and Visualize Beta Diversity
@@ -652,10 +682,14 @@ beta.w <- function(site1 = "", site2 = ""){
 }
 
 # Calculate Bray-Curtis 
-hmwf.db <- vegdist(OTUsREL.log, method = "bray")
+hmwf.db <- vegdist(OTUsREL, method = "bray")
+
+# Import UniFra Distances
+hmwf.uni.in <- read.table("../fasttree/HMWF.bac.0.03.gg.tree1.weighted.phylip.dist", skip=1, row.names = 1)
+hmwf.uni <- as.dist(hmwf.uni.in)
 ```
 
-## Principal Coordinates Analysis
+## Principal Coordinates Analysis: Bray Curtis
 ```{r}
 par(opar)
 hmwf.pcoa <- cmdscale(hmwf.db, eig = TRUE, k = 3) 
@@ -663,12 +697,30 @@ explainvar1 <- round(hmwf.pcoa$eig[1] / sum(hmwf.pcoa$eig), 3) * 100
 explainvar2 <- round(hmwf.pcoa$eig[2] / sum(hmwf.pcoa$eig), 3) * 100
 explainvar3 <- round(hmwf.pcoa$eig[3] / sum(hmwf.pcoa$eig), 3) * 100
 sum.eig <- sum(explainvar1, explainvar2, explainvar3)
+```
 
+## Principal Coordinates Analysis: UniFrac
+```{r}
+par(opar)
+hmwf.pcoa.b <- cmdscale(hmwf.uni, eig = TRUE, k = 3) 
+explainvar1.b <- round(hmwf.pcoa.b$eig[1] / sum(hmwf.pcoa.b$eig), 3) * 100
+explainvar2.b <- round(hmwf.pcoa.b$eig[2] / sum(hmwf.pcoa.b$eig), 3) * 100
+explainvar3.b <- round(hmwf.pcoa.b$eig[3] / sum(hmwf.pcoa.b$eig), 3) * 100
+sum.eig.b <- sum(explainvar1.b, explainvar2.b, explainvar3.b)
+```
+
+## Eigenvalue Analysis Plots
+```{r}
+png(filename="../figures/FigureS3.png",
+    width = 1600, height = 1100, res = 96*2)
 # Define Plot Parameters
-par(mar = c(5, 5, 1, 2) + 0.1)
+layout(as.matrix(cbind(1,2)))
+par(mar = c(1, 1.5, 3, 1.5) + 0.1, oma = c(5, 5, 0.5, 0.5))
 
+# Bray Curtis Analysis
 # Plot Eigenvalues
-plot(hmwf.pcoa$eig, xlab = "PCoA Axis", ylab = "Eigenvalue", 
+plot(hmwf.pcoa$eig, main = "Bray Curtis", 
+     #xlab = "PCoA Axis", ylab = "Eigenvalue", 
      las = 1, cex.lab = 1.5, pch = 16)
 
 # Add Expectation based on Kaiser-Guttman criterion and Broken Stick Model
@@ -679,10 +731,60 @@ lines(1:42, b.stick, type = "l", lty = 4, lwd = 2, col = "red")
 # Add Legend
 legend("topright", legend = c("Avg Eigenvalue", "Broken-Stick"), 
        lty = c(2, 4), bty = "n", col = c("blue", "red"))
+
+axis(1, lwd=2, labels = F)
+axis(2, lwd=2, labels = F)
+#axis(3, lwd=2, tck=-0.01, labels = F)
+#axis(4, lwd=2, tck=-0.01, labels = F)
+axis(1, lwd=2, tck=0.01, labels = F)
+axis(2, lwd=2, tck=0.01, labels = F)
+#axis(3, lwd=2, tck=0.01, labels = F)
+#axis(4, lwd=2, tck=0.01, labels = F)
+
+box(lwd=2)
+
+# UniFrac Analysis
+# Plot Eigenvalues
+plot(hmwf.pcoa.b$eig, main = "UniFrac", 
+     #xlab = "PCoA Axis", ylab = "Eigenvalue", 
+     las = 1, cex.lab = 1.5, pch = 16)
+
+# Add Expectation based on Kaiser-Guttman criterion and Broken Stick Model
+abline(h = mean(hmwf.pcoa.b$eig), lty = 2, lwd = 2, col = "blue")
+b.stick <- bstick(42, sum(hmwf.pcoa.b$eig))
+lines(1:42, b.stick, type = "l", lty = 4, lwd = 2, col = "red")
+
+# Add Legend
+legend("topright", legend = c("Avg Eigenvalue", "Broken-Stick"), 
+       lty = c(2, 4), bty = "n", col = c("blue", "red"))
+
+axis(1, lwd=2, labels = F)
+axis(2, lwd=2, labels = F)
+#axis(3, lwd=2, tck=-0.01, labels = F)
+#axis(4, lwd=2, tck=-0.01, labels = F)
+axis(1, lwd=2, tck=0.01, labels = F)
+axis(2, lwd=2, tck=0.01, labels = F)
+#axis(3, lwd=2, tck=0.01, labels = F)
+#axis(4, lwd=2, tck=0.01, labels = F)
+
+box(lwd=2)
+mtext("PCoA Axis", side = 1, outer = T, line = 2.5, cex = 2)
+mtext("Eigenvalue", side = 2, outer = T, line = 2.5, cex = 2)
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+par(opar)
 ```
 
-## Figure 4: Bacterial Community Composition Ordination Figure
+```{r fig.width=6, fig.height=4,echo=FALSE,fig.cap="Eigenvalue Analysis"}
+img <- readPNG("../figures/FigureS3.png")
+grid.raster(img)
+```
+
+## Figure 4: Bacterial Community Composition Ordination Figure: Bray Curtis
 ```{r results='hide'}
+design$Lake_Mol <- paste(design$Lake, design$Molecule, sep = "_")
+
 png(filename="../figures/Figure4.png",
     width = 1200, height = 1200, res = 96*2)
 par(opar)
@@ -724,8 +826,13 @@ points(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2],
        pch = lake.pch, cex = 2.5, bg = "gray", col = "gray")
 
 ordiellipse(cbind(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2]),
-    design$Lake, kind="se", conf=0.95,
-    lwd=2, draw = "polygon", col="gray", border = "black", label=FALSE, 
+    design$Lake, kind="sd", conf=0.95,
+    lwd=2, draw = "polygon", col="gray", border = "black", label=TRUE, 
+    cex=1, bty = 'n')
+
+ordihull(cbind(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2]),
+    design$Molecule, 
+    lwd=2, draw = "polygon", col="gray", border = "black", label=TRUE, 
     cex=1, bty = 'n')
 
 # Add Labels
@@ -747,6 +854,63 @@ par(opar)
 
 ```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Lake Nutrients"}
 img <- readPNG("../figures/Figure4.png")
+grid.raster(img)
+```
+
+## Figure 4: Bacterial Community Composition Ordination Figure: Unifrac
+```{r results='hide'}
+png(filename="../figures/Figure4b.png",
+    width = 1200, height = 1200, res = 96*2)
+par(opar)
+# Define Plot Parameters
+par(mar = c(5, 5, 1, 1) + 0.1)
+
+# Define Plot Symbols
+lake.pch <- rep(NA, length(design$Molecule))
+for (i in 1:length(design$Molecule)){
+if (design$Molecule[i] == "DNA"){
+    lake.pch[i] <- 16
+  }else{
+    lake.pch[i] <- 17
+  }}
+
+
+# Initiate Plot
+plot(hmwf.pcoa.b$points[ ,1], hmwf.pcoa.b$points[ ,2], 
+     ylim = c(-0.25, 0.25), xlim = c(-0.35, 0.25), 
+     xlab = paste("PCoA 1 (", explainvar1.b, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2.b, "%)", sep = ""),
+     pch = lake.pch, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, 
+     axes = FALSE)
+
+# Add Axes
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1, las = 1)
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1, las = 1)
+axis(side = 3, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
+axis(side = 4, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
+axis(side = 1, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
+axis(side = 2, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
+axis(side = 3, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
+axis(side = 4, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+# Add Points & Labels
+points(hmwf.pcoa.b$points[ ,1], hmwf.pcoa.b$points[ ,2],
+       pch = lake.pch, cex = 2.5, bg = "gray", col = "gray")
+
+ordiellipse(cbind(hmwf.pcoa.b$points[ ,1], hmwf.pcoa.b$points[ ,2]),
+    design$Molecule, kind="sd", conf=0.95,
+    lwd=2, draw = "polygon", col="gray", border = "black", label=TRUE, 
+    cex=1, bty = 'n')
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+par(opar)
+```
+
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="UniFrac Distances"}
+img <- readPNG("../figures/Figure4b.png")
 grid.raster(img)
 ```
 
@@ -774,6 +938,7 @@ beta.dis <- betadisper(vegdist(OTUsREL.log, "bray"), design$Lake)
 permutest(beta.dis)
 
 adonis(OTUsREL.log ~ design$Lake + design$Molecule, method = "bray", permutations = 999)
+adonis(OTUsREL ~ design$Lake + design$Molecule, method = "bray", permutations = 999)
 
 lake.dbrda <- capscale(OTUsREL.log ~ design$Lake + design$Molecule, distance = "bray", add = T)
 anova(lake.dbrda)
@@ -1314,5 +1479,16 @@ bac.dist <- vegdist(OTUsREL[design$Year == "2012" &
                               design$Molecule == "DNA", ], method="bray")
 bac.ward <- hclust(bac.dist, method = "ward.D2")
 plot(bac.ward, main = "Sites by Species")
+
+```
+
+# Co-Occurance Analysis
+```{r}
+require("bioDist")
+
+# Calculate 1 - Spearman Correlation Coefficients: Spearman Distance
+spear.bac <- spearman.dist(  , absif = T, diagif = T, upperif = T)
+
+
 
 ```
