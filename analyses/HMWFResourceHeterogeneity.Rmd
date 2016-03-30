@@ -65,6 +65,7 @@ The lakes are part of the Pine River Watershed which drains into Lake Superior (
 # Lake Information
 ```{r}
 lake.data <- read.csv("../data/lake_data.txt", row.names=1)
+colnames(lake.data) <- c("depth", "pH", "DO1", "DO2")
 lake.data$area <- rep(NA, dim(lake.data)[1])
 
 # Shape file source: http://www.mcgi.state.mi.us/mgdl/?rel=ext&action=sext
@@ -105,17 +106,17 @@ lake.data$area <- lake.data$area / 1000000
 #   which(shape$NAME == "Lily Pond" & grp.opts),
 #   which(shape$NAME == "Second Lake" & grp.opts),
 #   which(shape$NAME == "Third Lake" & grp.opts)),])
+
+lake.data <- lake.data[sort(row.names(lake.data)), c("area", "pH")]
 ```
 
 ## Supplemental Table 1: Lake Physical Properties
 ### Note: depth represents the maximum depth recorded during sampling and thus does not reflect the true depth of the lake
 
-Add pH
-
 ```{r, results="asis"}
 addtorow <- list()
 addtorow$pos <- list(0)
-addtorow$command <- c("Lake & Depth$^*$ (m) & Area (Km$^2$) \\\\\n")
+addtorow$command <- c("Lake & Area (Km$^2$)  & pH \\\\\n")
 lake.tab <- xtable(lake.data, digits = c(0,1,3))
 align(lake.tab) <- "ccc"
 print(lake.tab, add.to.row = addtorow, include.colnames = FALSE, 
@@ -152,25 +153,25 @@ PlotOnStaticMap(newmap1, zoom = 13, cex = 2, col = "blue")
 text(-120, 270, "Howe", col="red", cex=1.2)
 text(100, 255, "Rush", col="red", cex=1.2)
 text(105, 55, "Mountain", col="red", cex=1.2)
-arrows(10, 100, x1 = -10, y1 = 100, length=0.05, col = "red", lwd = 2)
+arrows(10, 100, x1 = -10, y1 = 100, length=0.05, col = "red", lwd = 2, code = 1)
 text(-36, 100, "Ann", col="red", cex=1.2)
-arrows(60, 230, x1 = 40, y1 = 230, length=0.05, col = "red", lwd = 2)
+arrows(60, 230, x1 = 40, y1 = 230, length=0.05, col = "red", lwd = 2, code = 1)
 text(8, 230, "Pony", col="red", cex=1.2)
-arrows(55, -230, x1 = 75, y1 = -230, length=0.05, col = "red", lwd = 2)
+arrows(55, -230, x1 = 75, y1 = -230, length=0.05, col = "red", lwd = 2, code = 1)
 text(120, -230, "Canyon", col="red", cex=1.2)
 
 # Right Side
 PlotOnStaticMap(newmap2, zoom = 13, cex = 2, col = "blue")
 text(-180, -90, "Ives", col="red", cex=1.2)
-arrows(-160, 20, x1 = -140, y1 = 20, length = 0.05, col = "red", lwd = 2)
+arrows(-160, 20, x1 = -140, y1 = 20, length = 0.05, col = "red", lwd = 2, code = 1)
 text(-75, 20, "Upper Pine", col="red", cex = 1.2)
-arrows(-220, 80, x1 = -200, y1 = 80, length = 0.05, col = "red", lwd = 2)
+arrows(-220, 80, x1 = -200, y1 = 80, length = 0.05, col = "red", lwd = 2, code = 1)
 text(-125, 80, "Second Pine", col="red", cex = 1.2)
-arrows(-55, -105, x1 = -35, y1 = -105, length = 0.05, col = "red", lwd = 2)
+arrows(-55, -105, x1 = -35, y1 = -105, length = 0.05, col = "red", lwd = 2, code = 1)
 text(-12, -105, "Lily", col="red", cex=1.2)
 
 # Compass Arrow
-arrows(280, 280, 280, 240, length = 0.1, col = "black", lwd = 3)
+arrows(280, 280, 280, 240, length = 0.1, col = "black", lwd = 3, code = 1)
 text(280, 220, "N", col = "black", cex = 1.5)
 
 # Inset
@@ -213,20 +214,20 @@ DOC$sample[grep("Pony", DOC$sample)] <- "Pony"
 DOC <- droplevels(DOC)
 
 # Total Nitrogen
-TN2011 <- read.delim("../data/2011TN_data.txt", header=T)
-TN2012 <- read.delim("../data/2012TN_data.txt", header=T)
-TN <- rbind(TN2011, TN2012)
-TN <- TN[grep("MEM*", TN$Sample), ]
-colnames(TN) <- c("sample", "conc", "LCL", "UCL", "se")
-TNkey <- read.delim("../data/DOC_KEY_epi.txt", header=T)
-TN$code <- TN$sample
-TN <- TN[which(TN$code %in% TNkey$Sample.Name), ]
-TN$sample <- TNkey$Site[match(TNkey$Sample.Name, TN$code)]
-TN$year <- substr(TN$code, 4, 7)
-TN$conc <- pmax(TN$conc, 0)
+#TN2011 <- read.delim("../data/2011TN_data.txt", header=T)
+#TN2012 <- read.delim("../data/2012TN_data.txt", header=T)
+TN <- read.delim("../data/HMWF_TN.txt")
+#TN <- TN[grep("MEM*", TN$Sample), ]
+colnames(TN) <- c("sample", "year", "conc")
+#TNkey <- read.delim("../data/DOC_KEY_epi.txt", header=T)
+#TN$code <- TN$sample
+#TN <- TN[which(TN$code %in% TNkey$Sample.Name), ]
+#TN$sample <- TNkey$Site[match(TNkey$Sample.Name, TN$code)]
+#TN$year <- substr(TN$code, 4, 7)
+#TN$conc <- pmax(TN$conc, 0)
 TN2 <- data.frame("sample" = TN$sample, "year" = TN$year, 
                   "conc" = TN$conc)[order(TN$sample, TN$year), ]
-TN$sample[grep("Pony", TN$sample)] <- "Pony"
+#TN$sample[grep("Pony", TN$sample)] <- "Pony"
 TN <- droplevels(TN)
 
 # Total Phosphorus
@@ -260,32 +261,36 @@ TN2 <- aggregate(conc ~ sample + year, TN2, mean)
 TP2 <- aggregate(conc ~ sample + year, TP2, mean)
 
 nuts <- data.frame("sample" = DOC2$sample, "year" = DOC2$year, 
-              "DOC" = DOC2$conc, "TP" = TP2$conc, "TN" = TN2$conc)
+              "DOC" = DOC2$conc, "TP" = TP2$conc)
 
 nuts <- data.frame(nuts[-which(nuts$sample == "Pony.N"), ])
 nuts$sample[grep("Pony", nuts$sample)] <- "Pony"
 nuts <- droplevels(nuts)
+nuts$TN <- TN2$conc
 ```
 
 ## Table 1: Lake Nutrients
 ```{r, results="asis"}
-nuts2 <- data.frame(matrix(NA, 10, 4))
+nuts2 <- data.frame(matrix(NA, 10, 6))
 row.names(nuts2) <- levels(nuts$sample)
-colnames(nuts2) <- c("DOC11", "DOC12", "TP11", "TP12")
+colnames(nuts2) <- c("DOC11", "DOC12", "TP11", "TP12", "TN11", "TN12")
 for (i in row.names(nuts2)){
   nuts2[i, 1] <- round(nuts[nuts$sample == i & nuts$year == "2011", 3], 2)
   nuts2[i, 2] <- round(nuts[nuts$sample == i & nuts$year == "2012", 3], 2)
   nuts2[i, 3] <- round(nuts[nuts$sample == i & nuts$year == "2011", 4], 2)    
   nuts2[i, 4] <- round(nuts[nuts$sample == i & nuts$year == "2012", 4], 2)
+  nuts2[i, 5] <- round(nuts[nuts$sample == i & nuts$year == "2011", 5], 2)    
+  nuts2[i, 6] <- round(nuts[nuts$sample == i & nuts$year == "2012", 5], 2)
 }
 
 addtorow <- list()
 addtorow$pos <- list(0, 0)
 addtorow$command <- c("& \\multicolumn{2}{c}{DOC (mg C L$^{-1}$)} & 
-                      \\multicolumn{2}{c}{TP ($\\mu$g P L$^{-1}$)} \\\\\n", 
-                      "Lake & 2011 & 2012 & 2011 & 2012 \\\\\n")
+                      \\multicolumn{2}{c}{TP ($\\mu$g P L$^{-1}$)} & 
+                      \\multicolumn{2}{c}{TN (mg N L$^{-1}$)}\\\\\n", 
+                      "Lake & 2011 & 2012 & 2011 & 2012 & 2011 & 2012 \\\\\n")
 nut.tab <- xtable(nuts2)
-align(nut.tab) <- "crrrr"
+align(nut.tab) <- "crrrrrr"
 print(nut.tab, add.to.row = addtorow, include.colnames = FALSE, 
       type= "latex", file="../tables/table1.tex", 
       hline.after = c(-1, -1, 0, nrow(nut.tab)))
@@ -329,24 +334,24 @@ legend("topleft", "A", bty = "n", x.intersp = 0, cex = 1.25)
 box(lwd = 2)
 
 # Total Nitrogen Plot
-plot(TN$conc ~ TN$sample, ylim = c(0,0.65), las = 1, 
+plot(TN$conc ~ TN$sample, ylim = c(0,2), las = 1, 
      xaxt="n", xlab = "", yaxt="n", ylab = "")
 axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
      at = c(1:10))
 axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
      at = c(1:10))
 axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1.2, las = 1, 
-     at = c(0.0, 0.2, 0.4, 0.6))
+     at = c(0.0, 0.5, 1.0, 1.5))
 axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
-     at = c(0.0, 0.2, 0.4, 0.6))
+     at = c(0.0, 0.5, 1.0, 1.5))
 axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
      at = c(1:10))
 axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
      at = c(1:10))
 axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, 
-     at = c(0.0, 0.2, 0.4, 0.6))
+     at = c(0.0, 0.5, 1.0, 1.5))
 axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, 
-     at = c(0.0, 0.2, 0.4, 0.6))
+     at = c(0.0, 0.5, 1.0, 1.5))
 mtext(side = 2, expression(paste("TN (mg N L" ^-1, ")")), 
       line = 3.5, cex = 1)
 legend("topleft", "B", bty = "n", x.intersp = 0, cex = 1.25)
@@ -1486,9 +1491,123 @@ plot(bac.ward, main = "Sites by Species")
 ```{r}
 require("bioDist")
 
-# Calculate 1 - Spearman Correlation Coefficients: Spearman Distance
-spear.bac <- spearman.dist(  , absif = T, diagif = T, upperif = T)
+# Subset OTUs for to remove very rare taxa
+OTUsREL2 <- OTUsREL[,which(colSums(as.matrix(OTUsREL)) > 0.05)]
+resREL2 <- resREL[,which(colSums(as.matrix(resREL)) > 0.022)]
 
+rownames(OTUsREL)
+rownames(resREL)
+OTUsREL3 <- OTUsREL2[grep("2012_RNA", rownames(OTUsREL)),]
+OTUsREL3 <- OTUsREL3[,order(colSums(as.matrix(OTUsREL3)), decreasing = T)[1:100]]
+resREL3 <- resREL2[,order(colSums(as.matrix(resREL2)), decreasing = T)[1:100]]
+ConRes1 <- cbind(as.matrix(OTUsREL3), as.matrix(resREL3))
+ConRes2 <- cbind(as.matrix(resREL3), as.matrix(OTUsREL3))
+ConRes <- rbind(ConRes1, ConRes2)
+
+# Calculate 1 - Spearman Correlation Coefficients: Spearman Distance
+spear.bac <- spearman.dist(t(OTUsREL2), abs = FALSE)
+spear.res <- spearman.dist(t(as.matrix(resREL2)), abs = FALSE)
+spear.ConRes <- spearman.dist(t(as.matrix(ConRes)), abs = FALSE, diag = F, upper = F)
+
+spear.bac2 <- spear.bac - 1
+spear.bac3 <- spear.bac2
+spear.bac3[which(spear.bac2 < 0.5 & spear.bac2 > -0.5)] <- NA
+
+spear.res2 <- spear.res - 1
+spear.res3 <- spear.res2
+spear.res3[which(spear.res2 < 0.5 & spear.res2 > -0.5)] <- NA
+
+spear.ConRes2 <- spear.ConRes - 1
+spear.ConRes3 <- spear.ConRes2
+spear.ConRes3[which(spear.ConRes2 < 0.5 & spear.ConRes2 > -0.5)] <- NA
+spear.ConRes4 <- as.matrix(spear.ConRes3) # [1:100, 101:200]
+
+# Custome Color Palette
+jet.colors <- colorRampPalette(c("#00007F", "blue", "#007FFF", "cyan", 
+                                 "#7FFF7F", "yellow", "#FF7F00", "red", 
+                                 "#7F0000"))
+
+layout(rbind(c(1,2)))
+
+require(gridExtra)
+order <- rev(attr(spear.bac3, "Labels"))
+plot1 <- levelplot(as.matrix(spear.bac3)[,order], aspect = "iso", col.regions = jet.colors, 
+          xlab = list(label = "OTU", cex = 1.2), ylab = list(label = "OTU", cex = 1.2), 
+          scales = list(cex = 0.3, x = list(rot=90)),
+          main = "Species Co-Occurence")
+
+
+order <- rev(attr(spear.res3, "Labels"))
+plot2 <- levelplot(as.matrix(spear.res3)[,order], aspect = "iso", col.regions = jet.colors, 
+          xlab = list(label = "Resource", cex = 1.2), ylab = list(label = "Resource", cex = 1.2), 
+          scales = list(cex = 0.3, x = list(rot=90)),
+          main = "Resource Co-Occurence")
+plot1
+plot2
+
+grid.arrange(plot1, plot2, ncol = 2)
+
+
+plot3 <- levelplot(spear.ConRes4, aspect = "iso", col.regions = jet.colors, 
+          xlab = list(label = "Consumer", cex = 1.5), 
+          ylab = list(label = "Resource", cex = 1.5), 
+          scales = list(cex = 0.3, tck = 0.75,
+                        #x = list(labels=colnames(ConRes)[1:100], rot=90),
+                        #y = list(labels=colnames(ConRes)[101:200])),
+                        x = list(rot=90),
+                        y = list()),
+          main = list(label = "Consumer-Resource Co-Occurence", line = 1),
+          par.settings=list(layout.heights=list(top.padding=3, bottom.padding=3)))         
+plot3
+             
+             
+             
+spearB.pcoa <- cmdscale(spear.bac, eig = TRUE, k = 3) 
+explainvar1 <- round(spearB.pcoa$eig[1] / sum(spearB.pcoa$eig), 3) * 100
+explainvar2 <- round(spearB.pcoa$eig[2] / sum(spearB.pcoa$eig), 3) * 100
+explainvar3 <- round(spearB.pcoa$eig[3] / sum(spearB.pcoa$eig), 3) * 100
+sum.eig <- sum(explainvar1, explainvar2, explainvar3)
+
+par(mar = c(5, 5, 1, 1) + 0.1)
+
+# Define Plot Symbols
+lake.pch <- rep(NA, length(design$Molecule))
+for (i in 1:length(design$Molecule)){
+if (design$Molecule[i] == "DNA"){
+    lake.pch[i] <- 16
+  }else{
+    lake.pch[i] <- 17
+  }}
+
+
+# Initiate Plot
+plot(spearB.pcoa$points[ ,1], spearB.pcoa$points[ ,2], 
+     ylim = c(-0.4, 0.8), xlim = c(-0.5, 0.6), 
+     xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
+     pch = lake.pch, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, 
+     axes = FALSE)
+
+# Add Axes
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1, las = 1)
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1, las = 1)
+axis(side = 3, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
+axis(side = 4, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
+axis(side = 1, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
+axis(side = 2, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
+axis(side = 3, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
+axis(side = 4, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+# Add Points & Labels
+points(spearB.pcoa$points[ ,1], spearB.pcoa$points[ ,2],
+       pch = lake.pch, cex = 0.5, bg = "gray", col = "gray")
+
+ordiellipse(cbind(spearB.pcoa$points[ ,1], spearB.pcoa$points[ ,2]),
+    design$Lake, kind="sd", conf=0.95,
+    lwd=2, draw = "polygon", col="gray", border = "black", label=TRUE, 
+    cex=1, bty = 'n')
 
 
 ```

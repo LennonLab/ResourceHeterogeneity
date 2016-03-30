@@ -1,0 +1,22 @@
+Lake	Year	TN
+Upper Pine	2011	0.608
+Ives	2011	0.419
+Second Pine	2011	0.434
+Ann	2011	0.417
+Mountain	2011	0.343
+Pony	2011	1.56
+Canyon	2011	0.438
+Howe	2011	0.564
+Lily	2011	0.825
+Rush	2011	0.304
+Rush	2012	0.41
+Howe	2012	0.569
+Mountain	2012	0.339
+Canyon	2012	0.377
+Upper Pine	2011	0.572
+Pony	2012	1.86
+Ives	2012	0.377
+Second Pine	2012	0.444
+Upper Pine	2012	0.567
+Ann	2012	0.427
+Lily	2012	0.926
