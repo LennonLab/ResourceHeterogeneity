@@ -52,6 +52,7 @@ require("RgoogleMaps")
 library("maps")
 library("mapdata")
 require("maptools")
+require("picante")
 ```
 
 # Study System Map
@@ -591,9 +592,12 @@ H <- function(x = ""){
 shan <- round(apply(OTUs, 1, H), 2)
 shan2 <- diversity(OTUs, index = "shannon")
 
+# Rarefied Richness
+S.rar <- round(rarefy(OTUs, min(rowSums(OTUs))), 0)
+
 design <- droplevels(design)
 
-alpha.div <- cbind(design, S.obs, simpsE, shan)
+alpha.div <- cbind(design, S.obs, simpsE, shan, S.rar)
 alpha.div <- alpha.div[order(alpha.div$Lake, alpha.div$Year, alpha.div$Molecule), ]
 ```
 
@@ -657,13 +661,15 @@ div.mod1 <- aov(S.obs ~ Lake, data = alpha.div)
 TukeyHSD(div.mod1)
 div.mod2 <- aov(simpsE ~ Lake, data = alpha.div)
 TukeyHSD(div.mod2)
+div.mod3 <- aov(S.rar ~ Lake, data = alpha.div)
+TukeyHSD(div.mod3)
 ```
 
 
 
 ## Lake Phylogenetic Diversity
 ```{r}
-require(picante)
+
 
 data(phylocom)
 phy <- phylocom$phylo
@@ -672,6 +678,23 @@ traits <- phylocom$traits
 
 # Import Tree with *ape* 
 hmwf.tree <- read.tree("../fasttree/HMWF.bac.0.03.gg.tree")
+tips <- paste(rep("Otu", length(hmwf.tree$tip.label)), 
+              formatC(seq(1:length(hmwf.tree$tip.label)), 
+                      width = 6, format = "d", flag = "0"), sep = "")
+hmwf.tree$tip.label <- tips
+prunedTree <- prune.sample(OTUs,hmwf.tree)
+
+pd(OTUs, prunedTree, include.root = FALSE)
+ses.pd(OTUs, prunedTree, include.root = FALSE)
+psr(OTUs, prunedTree)
+
+
+require(phyloseq)
+OTU.tab <- otu_table(OTUs, taxa_are_rows = F)
+PHY.tree <- phy_tree(hmwf.tree)
+phylo.seq <- phyloseq(OTU.tab, PHY.tree)
+uni.frac.u <- UniFrac(phylo.seq, weighted = FALSE, normalized = TRUE)
+uni.frac.w <- UniFrac(phylo.seq, weighted = TRUE, normalized = TRUE)
 ```
 
 ## Calculate and Visualize Beta Diversity
