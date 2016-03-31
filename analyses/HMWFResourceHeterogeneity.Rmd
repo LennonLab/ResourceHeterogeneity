@@ -1021,33 +1021,49 @@ per.bray.p <- adonis(OTUsPA ~ design$Lake + design$Molecule, method = "bray")
 ## CCA Analysis
 ```{r, results = "hide"}
 # Define Environmental Matrix
-env.chem <- as.data.frame(nuts[,3:5])
+env.chem <- as.data.frame(scale(apply(nuts[,3:5], 2, log)))
 row.names(env.chem) <- paste(nuts$sample, nuts$year, sep = "-")
 env.chem <- as.matrix(env.chem[sort(row.names(env.chem)), ])
 
+env.chem.L <- env.chem[nuts$sample != "Pony" & nuts$sample != "Lily", ]
+
 # Define DNA Community
-OTUsREL.D <- OTUsREL[design$Molecule == "DNA" , ]
+OTUsREL.D <- OTUsREL.log[design$Molecule == "DNA" , ]
 OTUsREL.R <- OTUsREL[design$Molecule == "DNA" , ]
 
+OTUsREL.D.L <- OTUsREL.log[design$Molecule == "DNA" & 
+                           design$Lake != "Pony" & design$Lake != "Lily", ]
+OTUsREL.R.L <- OTUsREL.log[design$Molecule == "RNA" & 
+                           design$Lake != "Pony" & design$Lake != "Lily", ]
+
 # Conduct CCA 
-hmwf.bacD.cca <- vegan::cca(OTUsREL.D ~ env.chem)
+hmwf.bacD.cca <- vegan::cca(OTUsREL.D.L ~ env.chem.L, scale = T)
+hmwf.bacR.cca <- vegan::cca(OTUsREL.R.L ~ env.chem.L, scale = T)
 
 # Permutation Tests
-anova(hmwf.bacD.cca, by = "axis")
-cca.fit <- envfit(hmwf.bacD.cca, env.chem, perm = 999)
+cca.ax <- anova(hmwf.bacD.cca, by = "axis")
+cca.ev <- anova(hmwf.bacD.cca, by = "margin")
+cca.fit <- envfit(hmwf.bacD.cca, env.chem.L, perm = 999)
+cca.R.fit <- envfit(hmwf.bacR.cca, env.chem.L, perm = 999) # Only Phosphorus
 cca.fit
+cca.R.fit
+
+RsquareAdj(hmwf.bacD.cca)
+RsquareAdj(hmwf.bacR.cca)
 
 # Calculate Explained Variation
-cca.explainvar1 <- round(doubs.cca$CCA$eig[1] / 
-                         sum(c(doubs.cca$CCA$eig, doubs.cca$CA$eig)), 3) * 100
-cca.explainvar2 <- round(doubs.cca$CCA$eig[2] / 
-                         sum(c(doubs.cca$CCA$eig, doubs.cca$CA$eig)), 3) * 100
+cca.explainvar1 <- round(hmwf.bacD.cca$CCA$eig[1] / 
+                         sum(c(hmwf.bacD.cca$CCA$eig, hmwf.bacD.cca$CA$eig)), 3) * 100
+cca.explainvar2 <- round(hmwf.bacD.cca$CCA$eig[2] / 
+                         sum(c(hmwf.bacD.cca$CCA$eig, hmwf.bacD.cca$CA$eig)), 3) * 100
+```
 
+```{r}
 # Define Plot Parameters
 par(mar = c(5, 5, 4, 4) + 0.1)
 
 # Initiate Plot
-plot(scores(doubs.cca, display = "wa"), xlim = c(-3.5, 2), ylim = c(-3.2, 3.2),
+plot(scores(hmwf.bacD.cca, display = "wa"), xlim = c(-3, 3), ylim = c(-4, 4),
      xlab = paste("CCA 1 (", cca.explainvar1, "%)", sep = ""),
      ylab = paste("CCA 2 (", cca.explainvar2, "%)", sep = ""),
      pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
@@ -1059,22 +1075,24 @@ abline(h = 0, v = 0, lty = 3)
 box(lwd = 2)
 
 # Add Points & Labels
-points(scores(doubs.cca, display = "wa"),
-       pch = 19, cex = 3, bg = "gray", col = "gray")
-text(scores(doubs.cca, display = "wa"), 
-     labels = row.names(scores(doubs.cca, display = "wa")))
+points(scores(hmwf.bacD.cca, display = "wa"),
+       pch = 19, cex = 2, bg = "gray", col = "gray")
+#text(scores(hmwf.bacD.cca, display = "wa"), 
+#     labels = row.names(scores(hmwf.bacD.cca, display = "wa")))
 
 # Add Environmental Vectors
-vectors <- scores(doubs.cca, display = "bp")
-row.names(vectors) <- c("pH", "har", "pho", "nit", "amm", "oxy", "bdo")
+vectors <- scores(hmwf.bacD.cca, display = "bp")
+row.names(vectors) <- c("DOC", "TP", "TN")
 arrows(0, 0, vectors[,1] * 2, vectors[, 2] * 2, 
        lwd = 2, lty = 1, length = 0.2, col = "red")
-text(vectors[,1] * 2, vectors[, 2] * 2, pos = 3, 
-     labels = row.names(vectors))
-axis(side = 3, lwd.ticks=2, cex.axis=1.2, las = 1, col = "red", lwd = 2.2,
-     at = pretty(range(vectors[, 1])) * 2, labels = pretty(range(vectors[, 1])))
-axis(side = 4, lwd.ticks=2, cex.axis=1.2, las = 1, col = "red", lwd = 2.2,
-     at = pretty(range(vectors[, 2])) * 2, labels = pretty(range(vectors[, 2])))
+text(vectors[,1] * 2, vectors[, 2] * 2, pos = c(3, 1, 1), 
+     labels = row.names(vectors), col = "red", cex = 0.8)
+axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
+     at = c(-0.5, 0, 0.5, 1, 1.5) * 2, 
+     labels = c(-0.5, 0, 0.5, 1, 1.5), col.axis = "red")
+axis(side = 4, lwd.ticks=2, cex.axis = 0.8, las = 1, col = "red", lwd = 2.2, 
+     at = c(-1, 0, 1) * 2, 
+     labels = c(-1, 0, 1), col.axis = "red")
 ```
 
 
