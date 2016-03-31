@@ -393,6 +393,40 @@ img <- readPNG("../figures/Figure1.png")
 grid.raster(img)
 ```
 
+
+## Cluster Lakes by Nutrients
+```{r}
+nuts.m <- nuts[,3:5]
+row.names(nuts.m) <- paste(nuts[,1], nuts[,2], sep = "-")
+nuts.s <- t(scale(nuts.m))
+
+# Determine number of clusters
+wss <- (nrow(nuts.s)-1)*sum(apply(nuts.s,2,var))
+for (i in 2:3) wss[i] <- sum(kmeans(nuts.s,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares") 
+
+# K-Means Cluster Analysis
+fit <- kmeans(nuts.s, 2) # 4 cluster solution
+# get cluster means
+aggregate(nuts.s,by=list(fit$cluster),FUN=mean)
+# append cluster assignment
+mydata <- data.frame(nuts.s, fit$cluster) 
+
+
+test <- hclust(dist(t(nuts.s)), method = "ward.D2")
+
+# Ward Hierarchical Clustering with Bootstrapped p values
+library(pvclust)
+fit <- pvclust(t(nuts.s), method.hclust="ward.D2", method.dist = "euclidean")
+plot(fit) # dendogram with p values
+# add rectangles around groups highly supported by the data
+pvrect(fit, alpha=.95) 
+
+```
+
+
 But there are other differences between these lakes. 
 For example, algal derived resources differ (as infered from chlorophyll *a* concentrations).
 Additionally, bacterial respiration differs between lakes though there is also temperature dependence with these values as well (temperature between years of sampling). 
@@ -738,10 +772,13 @@ hmwf.uni <- as.dist(hmwf.uni.in)
 
 require(phyloseq)
 OTU.tab <- otu_table(OTUs, taxa_are_rows = F)
+OTU.tab.l <- otu_table(OTUsREL, taxa_are_rows = F)
 PHY.tree <- phy_tree(hmwf.tree)
 phylo.seq <- phyloseq(OTU.tab, PHY.tree)
+phylo.seq.l <- phyloseq(OTU.tab.l, PHY.tree)
 uni.frac.u <- UniFrac(phylo.seq, weighted = FALSE, normalized = TRUE)
 uni.frac.w <- UniFrac(phylo.seq, weighted = TRUE, normalized = TRUE)
+uni.frac.wl <- UniFrac(phylo.seq.l, weighted = TRUE, normalized = TRUE)
 ```
 
 ## Principal Coordinates Analysis: Bray Curtis
@@ -757,7 +794,7 @@ sum.eig <- sum(explainvar1, explainvar2, explainvar3)
 ## Principal Coordinates Analysis: UniFrac
 ```{r}
 par(opar)
-hmwf.pcoa.b <- cmdscale(hmwf.uni, eig = TRUE, k = 3) 
+hmwf.pcoa.b <- cmdscale(uni.frac.w, eig = TRUE, k = 3) 
 explainvar1.b <- round(hmwf.pcoa.b$eig[1] / sum(hmwf.pcoa.b$eig), 3) * 100
 explainvar2.b <- round(hmwf.pcoa.b$eig[2] / sum(hmwf.pcoa.b$eig), 3) * 100
 explainvar3.b <- round(hmwf.pcoa.b$eig[3] / sum(hmwf.pcoa.b$eig), 3) * 100
@@ -880,27 +917,27 @@ box(lwd = 2)
 points(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2],
        pch = lake.pch, cex = 2.5, bg = "gray", col = "gray")
 
-ordiellipse(cbind(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2]),
-    design$Lake, kind="sd", conf=0.95,
-    lwd=2, draw = "polygon", col="gray", border = "black", label=TRUE, 
-    cex=1, bty = 'n')
+# ordiellipse(cbind(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2]),
+#     design$Lake, kind="sd", conf=0.95,
+#     lwd=2, draw = "polygon", col="gray", border = "black", label=TRUE, 
+#     cex=1, bty = 'n')
 
-ordihull(cbind(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2]),
-    design$Molecule, 
-    lwd=2, draw = "polygon", col="gray", border = "black", label=TRUE, 
-    cex=1, bty = 'n')
+#ordihull(cbind(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2]),
+#    design$Molecule, 
+#    lwd=2, draw = "polygon", col="gray", border = "black", label=TRUE, 
+#    cex=1, bty = 'n')
 
 # Add Labels
-text(0.38, 0.13, "Lily")
-text(0.56, -0.11, "Pony")
-text(0.05, -0.19, "Upper Pine")
-text(-0.18, -0.29, "Second Pine")
-text(0, -0.05, "Mountain")
-text(-0.25, 0, "Ives")
-text(0.1, 0.1, "Canyon")
-text(-0.25, 0.1, "Howe")
-text(-0.2, 0.225, "Rush")
-text(-0.05, 0.2, "Ann")
+# text(0.38, 0.13, "Lily")
+# text(0.56, -0.11, "Pony")
+# text(0.05, -0.19, "Upper Pine")
+# text(-0.18, -0.29, "Second Pine")
+# text(0, -0.05, "Mountain")
+# text(-0.25, 0, "Ives")
+# text(0.1, 0.1, "Canyon")
+# text(-0.25, 0.1, "Howe")
+# text(-0.2, 0.225, "Rush")
+# text(-0.05, 0.2, "Ann")
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices
@@ -967,6 +1004,77 @@ par(opar)
 ```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="UniFrac Distances"}
 img <- readPNG("../figures/Figure4b.png")
 grid.raster(img)
+```
+
+## PERMANOVA
+```{r}
+per.bray <- adonis(OTUsREL ~ design$Lake + design$Molecule, method = "bray")
+per.uni <- adonis(uni.frac.w ~ design$Lake + design$Molecule)
+per.uni.u <- adonis(uni.frac.u ~ design$Lake + design$Molecule)
+per.bray.l <- adonis(OTUsREL.log ~ design$Lake + design$Molecule, method = "bray")
+per.bray.p <- adonis(OTUsPA ~ design$Lake + design$Molecule, method = "bray")
+
+
+```
+
+
+## CCA Analysis
+```{r, results = "hide"}
+# Define Environmental Matrix
+env.chem <- as.data.frame(nuts[,3:5])
+row.names(env.chem) <- paste(nuts$sample, nuts$year, sep = "-")
+env.chem <- as.matrix(env.chem[sort(row.names(env.chem)), ])
+
+# Define DNA Community
+OTUsREL.D <- OTUsREL[design$Molecule == "DNA" , ]
+OTUsREL.R <- OTUsREL[design$Molecule == "DNA" , ]
+
+# Conduct CCA 
+hmwf.bacD.cca <- vegan::cca(OTUsREL.D ~ env.chem)
+
+# Permutation Tests
+anova(hmwf.bacD.cca, by = "axis")
+cca.fit <- envfit(hmwf.bacD.cca, env.chem, perm = 999)
+cca.fit
+
+# Calculate Explained Variation
+cca.explainvar1 <- round(doubs.cca$CCA$eig[1] / 
+                         sum(c(doubs.cca$CCA$eig, doubs.cca$CA$eig)), 3) * 100
+cca.explainvar2 <- round(doubs.cca$CCA$eig[2] / 
+                         sum(c(doubs.cca$CCA$eig, doubs.cca$CA$eig)), 3) * 100
+
+# Define Plot Parameters
+par(mar = c(5, 5, 4, 4) + 0.1)
+
+# Initiate Plot
+plot(scores(doubs.cca, display = "wa"), xlim = c(-3.5, 2), ylim = c(-3.2, 3.2),
+     xlab = paste("CCA 1 (", cca.explainvar1, "%)", sep = ""),
+     ylab = paste("CCA 2 (", cca.explainvar2, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
+
+# Add Axes
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+# Add Points & Labels
+points(scores(doubs.cca, display = "wa"),
+       pch = 19, cex = 3, bg = "gray", col = "gray")
+text(scores(doubs.cca, display = "wa"), 
+     labels = row.names(scores(doubs.cca, display = "wa")))
+
+# Add Environmental Vectors
+vectors <- scores(doubs.cca, display = "bp")
+row.names(vectors) <- c("pH", "har", "pho", "nit", "amm", "oxy", "bdo")
+arrows(0, 0, vectors[,1] * 2, vectors[, 2] * 2, 
+       lwd = 2, lty = 1, length = 0.2, col = "red")
+text(vectors[,1] * 2, vectors[, 2] * 2, pos = 3, 
+     labels = row.names(vectors))
+axis(side = 3, lwd.ticks=2, cex.axis=1.2, las = 1, col = "red", lwd = 2.2,
+     at = pretty(range(vectors[, 1])) * 2, labels = pretty(range(vectors[, 1])))
+axis(side = 4, lwd.ticks=2, cex.axis=1.2, las = 1, col = "red", lwd = 2.2,
+     at = pretty(range(vectors[, 2])) * 2, labels = pretty(range(vectors[, 2])))
 ```
 
 
