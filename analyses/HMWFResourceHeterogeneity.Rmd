@@ -679,7 +679,6 @@ for (i in (3:4)){
 
 mtext(side = 1, "PCoA 1", outer = T, line = 3)
 
-
 # ordiellipse(cbind(hmwf.pcoa$points[ ,1], hmwf.pcoa$points[ ,2]),
 #     design$Lake, kind="sd", conf=0.95,
 #     lwd=2, draw = "polygon", col="gray", border = "black", label=TRUE, 
@@ -934,17 +933,6 @@ summary(richmod)
 ```
 
 
-# H1: Do resource Concentrations explain variation in bacterial communities or DOM 
-
-```{r}
-
-
-
-````
-
-
-
-
 
 
 
@@ -955,9 +943,9 @@ summary(richmod)
 # Define Environmental Matrix
 env.chem <- as.data.frame(scale(apply(nuts[,3:5], 2, log)))
 row.names(env.chem) <- paste(nuts$sample, nuts$year, sep = "-")
-env.chem <- as.matrix(env.chem[sort(row.names(env.chem)), ])
+env.chem <- as.data.frame(env.chem[sort(row.names(env.chem)), ])
 env.chem.L <- env.chem[nuts$sample != "Pony" & nuts$sample != "Lily", ]
-env.chem2012 <- env.chem[grep("2012", row.names(env.chem)), ]
+env.chem2012 <- as.data.frame(env.chem[grep("2012", row.names(env.chem)), ])
 
 # Define DNA Community
 OTUsREL.D <- OTUsREL[design$Molecule == "DNA" , ]
@@ -982,32 +970,29 @@ Uni.REL.R <- UniFrac(phylo.seq.R, weighted = TRUE, normalized = TRUE)
 Bray.OM <- vegdist(res, "bray")
 
 # Conduct dbRDA 
-hmwf.bray.D.rda <- capscale(Bray.REL.D ~ env.chem, scale = T, comm = OTUsREL.D, add = T)
-hmwf.bray.R.rda <- capscale(Bray.REL.R ~ env.chem, scale = T)
-hmwf.uni.D.rda <- capscale(Uni.REL.R ~ env.chem, scale = T)
-hmwf.uni.R.rda <- capscale(Uni.REL.R ~ env.chem, scale = T)
-hmwf.res.rda <- capscale(Bray.OM ~ env.chem2012, scale = T)
+hmwf.bray.D.rda <- capscale(Bray.REL.D ~ env.chem$DOC + env.chem$TP + env.chem$TN, 
+                            comm = OTUsREL.D, add = T)
+hmwf.bray.R.rda <- capscale(Bray.REL.R ~ env.chem$DOC + env.chem$TP + env.chem$TN, 
+                            comm = OTUsREL.R, add = T)
+hmwf.uni.D.rda <- capscale(Uni.REL.R ~ env.chem$DOC + env.chem$TP + env.chem$TN, 
+                           comm = OTUsREL.D, add = T)
+hmwf.uni.R.rda <- capscale(Uni.REL.R ~ env.chem$DOC + env.chem$TP + env.chem$TN, 
+                            comm = OTUsREL.R, add = T)
+hmwf.res.rda <- capscale(Bray.OM ~ env.chem2012$DOC + env.chem2012$TP + env.chem2012$TN,
+                         comm = res, add = T)
 
-# Permutation Tests
-anova(hmwf.bray.D.rda, by = "axis")
-anova(hmwf.bray.R.rda, by = "margin")
-cca.fit <- envfit(hmwf.bacD.cca, env.chem, perm = 999)
-cca.R.fit <- envfit(hmwf.bacR.cca, env.chem, perm = 999) # Only Phosphorus
-cca.fit
-cca.R.fit
+anova(hmwf.bray.D.rda)
+RsquareAdj(hmwf.bray.D.rda)
+anova(hmwf.bray.R.rda)
+RsquareAdj(hmwf.bray.R.rda)
+anova(hmwf.uni.D.rda)
+RsquareAdj(hmwf.uni.D.rda)
+anova(hmwf.uni.R.rda)
+RsquareAdj(hmwf.uni.R.rda)
+anova(hmwf.res.rda)
+RsquareAdj(hmwf.res.rda)
 
-RsquareAdj(hmwf.bacD.cca)
-RsquareAdj(hmwf.bacR.cca)
 
-# Calculate Explained Variation
-cca.D.explainvar1 <- round(hmwf.bacD.cca$CCA$eig[1] / 
-                         sum(c(hmwf.bacD.cca$CCA$eig, hmwf.bacD.cca$CA$eig)), 3) * 100
-cca.D.explainvar2 <- round(hmwf.bacD.cca$CCA$eig[2] / 
-                         sum(c(hmwf.bacD.cca$CCA$eig, hmwf.bacD.cca$CA$eig)), 3) * 100
-cca.R.explainvar1 <- round(hmwf.bacR.cca$CCA$eig[1] / 
-                         sum(c(hmwf.bacR.cca$CCA$eig, hmwf.bacR.cca$CA$eig)), 3) * 100
-cca.R.explainvar2 <- round(hmwf.bacR.cca$CCA$eig[2] / 
-                         sum(c(hmwf.bacR.cca$CCA$eig, hmwf.bacR.cca$CA$eig)), 3) * 100
 ```
 
 ## Figure 2: CCA Analysis
