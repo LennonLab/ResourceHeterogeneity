@@ -599,6 +599,10 @@ palette(rainbow_hcl(10, c = 80, l = 60)) #[c(5, 2, 6, 3, 1)])
 lake.col <- rep(NA, length(unique(design$Lake)))
 names(lake.col) <- unique(design$Lake)
 lake.col <- as.numeric(factor(design$Lake))
+design$lake.col <- NA
+for (i in 1:dim(design)[1]){
+  design$lake.col[i] <- which(levels(design$Lake) == design$Lake[i])
+}
 
 png(filename="../figures/Figure2.png",
     width = 1800, height = 900, res = 96*2)
@@ -946,6 +950,9 @@ row.names(env.chem) <- paste(nuts$sample, nuts$year, sep = "-")
 env.chem <- as.data.frame(env.chem[sort(row.names(env.chem)), ])
 env.chem.L <- env.chem[nuts$sample != "Pony" & nuts$sample != "Lily", ]
 env.chem2012 <- as.data.frame(env.chem[grep("2012", row.names(env.chem)), ])
+designDNA <- design[design$Molecule == "DNA", ]
+designRNA <- design[design$Molecule == "RNA", ]
+designRES <- design[design$Molecule == "DNA" & design$Year == "2012", ]
 
 # Define DNA Community
 OTUsREL.D <- OTUsREL[design$Molecule == "DNA" , ]
@@ -992,90 +999,124 @@ RsquareAdj(hmwf.uni.R.rda)
 anova(hmwf.res.rda)
 RsquareAdj(hmwf.res.rda)
 
+rda.D.explainvar1 <- round(hmwf.bray.D.rda$CCA$eig[1] / sum(hmwf.bray.D.rda$CCA$eig), 3) * 100
+rda.D.explainvar2 <- round(hmwf.bray.D.rda$CCA$eig[2] / sum(hmwf.bray.D.rda$CCA$eig), 3) * 100
+rda.R.explainvar1 <- round(hmwf.bray.R.rda$CCA$eig[1] / sum(hmwf.bray.R.rda$CCA$eig), 3) * 100
+rda.R.explainvar2 <- round(hmwf.bray.R.rda$CCA$eig[2] / sum(hmwf.bray.R.rda$CCA$eig), 3) * 100
+rda.UD.explainvar1 <- round(hmwf.uni.D.rda$CCA$eig[1] / sum(hmwf.uni.D.rda$CCA$eig), 3) * 100
+rda.UD.explainvar2 <- round(hmwf.uni.D.rda$CCA$eig[2] / sum(hmwf.uni.D.rda$CCA$eig), 3) * 100
+rda.UR.explainvar1 <- round(hmwf.uni.R.rda$CCA$eig[1] / sum(hmwf.uni.R.rda$CCA$eig), 3) * 100
+rda.UR.explainvar2 <- round(hmwf.uni.R.rda$CCA$eig[2] / sum(hmwf.uni.R.rda$CCA$eig), 3) * 100
+rda.Res.explainvar1 <- round(hmwf.res.rda$CCA$eig[1] / sum(hmwf.res.rda$CCA$eig), 3) * 100
+rda.Res.explainvar2 <- round(hmwf.res.rda$CCA$eig[2] / sum(hmwf.res.rda$CCA$eig), 3) * 100
 
 ```
 
-## Figure 2: CCA Analysis
+## Figure 2: dbRDA
 ```{r, results='hide'}
 png(filename="../figures/Figure3.png",
-    width = 1800, height = 900, res = 96*2)
+    width = 1800, height = 1800, res = 96*2)
 par(opar)
 # Define Plot Parameters
-layout(matrix(c(1:2), ncol = 2))
-par(mar = c(5, 5, 4, 4) + 0.1)
+layout(matrix(c(1:4), ncol = 2, byrow = T))
+par(mar = c(5, 5, 3, 2) + 0.1, oma = c(1, 1, 1, 1))
 
 # Initiate Plot 1
-plot(scores(hmwf.bacD.cca, display = "wa"), xlim = c(-3, 3), ylim = c(-4, 4),
-     xlab = paste("CCA 1 (", cca.D.explainvar1, "%)", sep = ""),
-     ylab = paste("CCA 2 (", cca.D.explainvar2, "%)", sep = ""),
+plot(scores(hmwf.bray.D.rda, display = "wa"), xlim = c(-1, 2), ylim = c(-1.5, 2),
+     xlab = paste("dbRDA 1 (", rda.D.explainvar1, "%)", sep = ""),
+     ylab = paste("dbRDA 2 (", rda.D.explainvar2, "%)", sep = ""),
      pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
 
 # Add Axes
-axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
-axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
 abline(h = 0, v = 0, lty = 3)
 box(lwd = 2)
 
 # Add Points & Labels
-points(scores(hmwf.bacD.cca, display = "wa"),
-       pch = 19, cex = 2, bg = "gray", col = lake.col)
-#text(scores(hmwf.bacD.cca, display = "wa"), 
-#     labels = row.names(scores(hmwf.bacD.cca, display = "wa")))
-
-legend("bottomleft",levels(design$Lake), ncol = 1, pch = 16, col = 1:10, 
-           bty = "n", pt.cex = 1, cex = 0.8)
+points(scores(hmwf.bray.D.rda, display = "wa"),
+       pch = 16, cex = 2, bg = "gray", col = designDNA$lake.col)
 
 # Add Environmental Vectors
-vectors <- scores(hmwf.bacD.cca, display = "bp")
+vectors <- scores(hmwf.bray.D.rda, display = "bp")
 row.names(vectors) <- c("DOC", "TP", "TN")
-arrows(0, 0, vectors[,1] * 2, vectors[, 2] * 2, 
+arrows(0, 0, vectors[,1] , vectors[, 2], 
        lwd = 2, lty = 1, length = 0.2, col = "red")
-text(vectors[,1] * 2, vectors[, 2] * 2, pos = c(3, 1, 1), 
+text(vectors[,1], vectors[, 2], pos = c(3, 1, 1), 
      labels = row.names(vectors), col = "red", cex = 0.8)
 axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
-     at = c(-0.5, 0, 0.5, 1, 1.5) * 2, 
+     at = c(-0.5, 0, 0.5, 1, 1.5), 
      labels = c(-0.5, 0, 0.5, 1, 1.5), col.axis = "red")
 axis(side = 4, lwd.ticks=2, cex.axis = 0.8, las = 1, col = "red", lwd = 2.2, 
-     at = c(-1, 0, 1) * 2, 
+     at = c(-1, 0, 1), 
      labels = c(-1, 0, 1), col.axis = "red")
-
 
 # Initiate Plot 2
-plot(scores(hmwf.bacR.cca, display = "wa"), xlim = c(-3, 3), ylim = c(-4, 4),
-     xlab = paste("CCA 1 (", cca.R.explainvar1, "%)", sep = ""),
-     ylab = paste("CCA 2 (", cca.R.explainvar2, "%)", sep = ""),
-     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
+plot(scores(hmwf.bray.R.rda, display = "wa"), xlim = c(-1, 2), ylim = c(-1.5, 2),
+     xlab = paste("dbRDA 1 (", rda.R.explainvar1, "%)", sep = ""),
+     ylab = paste("dbRDA 2 (", rda.R.explainvar2, "%)", sep = ""),
+     pch = 17, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
 
 # Add Axes
-axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
-axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
 abline(h = 0, v = 0, lty = 3)
 box(lwd = 2)
 
 # Add Points & Labels
-points(scores(hmwf.bacR.cca, display = "wa"),
-       pch = 19, cex = 2, bg = "gray", col = lake.col)
-#text(scores(hmwf.bacD.cca, display = "wa"), 
-#     labels = row.names(scores(hmwf.bacD.cca, display = "wa")))
-
-#legend("bottomleft",levels(design$Lake), ncol = 1, pch = 16, col = 1:10, 
-#           bty = "n", pt.cex = 1, cex = 0.8)
+points(scores(hmwf.bray.R.rda, display = "wa"),
+       pch = 17, cex = 2, bg = "gray", col = designRNA$lake.col)
 
 # Add Environmental Vectors
-vectors <- scores(hmwf.bacR.cca, display = "bp")
+vectors <- scores(hmwf.bray.R.rda, display = "bp")
 row.names(vectors) <- c("DOC", "TP", "TN")
-arrows(0, 0, vectors[,1] * 2, vectors[, 2] * 2, 
+arrows(0, 0, vectors[,1] , vectors[, 2], 
        lwd = 2, lty = 1, length = 0.2, col = "red")
-text(vectors[,1] * 2, vectors[, 2] * 2, pos = c(3, 1, 1), 
+text(vectors[,1], vectors[, 2], pos = c(3, 1, 1), 
      labels = row.names(vectors), col = "red", cex = 0.8)
 axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
-     at = c(-0.5, 0, 0.5, 1, 1.5) * 2, 
+     at = c(-0.5, 0, 0.5, 1, 1.5), 
      labels = c(-0.5, 0, 0.5, 1, 1.5), col.axis = "red")
 axis(side = 4, lwd.ticks=2, cex.axis = 0.8, las = 1, col = "red", lwd = 2.2, 
-     at = c(-1, 0, 1) * 2, 
+     at = c(-1, 0, 1), 
      labels = c(-1, 0, 1), col.axis = "red")
 
+# Initiate Plot 3
+plot(scores(hmwf.res.rda, display = "wa"), xlim = c(-1, 2), ylim = c(-1.5, 2),
+     xlab = paste("dbRDA 1 (", rda.Res.explainvar1, "%)", sep = ""),
+     ylab = paste("dbRDA 2 (", rda.Res.explainvar2, "%)", sep = ""),
+     pch = 15, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
 
+# Add Axes
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+# Add Points & Labels
+points(scores(hmwf.res.rda, display = "wa"),
+       pch = 15, cex = 2, bg = "gray", col = designRES$lake.col)
+
+# Add Environmental Vectors
+vectors <- scores(hmwf.res.rda, display = "bp")
+row.names(vectors) <- c("DOC", "TP", "TN")
+arrows(0, 0, vectors[,1] , vectors[, 2], 
+       lwd = 2, lty = 1, length = 0.2, col = "red")
+text(vectors[,1], vectors[, 2], pos = c(3, 1, 1), 
+     labels = row.names(vectors), col = "red", cex = 0.8)
+axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
+     at = c(-0.5, 0, 0.5, 1, 1.5), 
+     labels = c(-0.5, 0, 0.5, 1, 1.5), col.axis = "red")
+axis(side = 4, lwd.ticks=2, cex.axis = 0.8, las = 1, col = "red", lwd = 2.2, 
+     at = c(-1, 0, 1), 
+     labels = c(-1, 0, 1), col.axis = "red")
+
+plot.new()
+par(mar = c(0, 0, 0, 0) + 0.5)
+legend("topleft", legend = designRES$Lake, pch = 16, col = designRES$lake.col, 
+       bty = "n", ncol = 2, cex = 1.5, pt.cex = 1.5, y.intersp = 1.5)
+legend("bottomleft", legend = c("DNA", "RNA", "OM"), pch = c(16, 17, 15), 
+       col = "gray", bty = "n", cex = 1.5, pt.cex = 1.5, y.intersp = 1.5)
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices
@@ -1083,7 +1124,7 @@ par(opar)
 ```
 
 ```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="PCoA Supplement"}
-img <- readPNG("../figures/Figure2.png")
+img <- readPNG("../figures/Figure3.png")
 grid.raster(img)
 ```
 
