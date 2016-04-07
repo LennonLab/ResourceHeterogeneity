@@ -1348,45 +1348,35 @@ img <- readPNG("../figures/Figure5C.png")
 grid.raster(img)
 ```
 
+## Co-Occurence Summary
+```{r}
+proC <- length(which(spear.bac3 > 0))
+antC <- length(which(spear.bac3 < 0))
 
+(proC + antC) / length(spear.bac3)
 
+proC <- colSums(as.matrix(spear.bac3) > 0)
+conC <- colSums(as.matrix(spear.bac3) < 0)
 
+proR <- length(which(spear.res3 > 0))
+antR <- length(which(spear.res3 < 0))
 
+prosR <- colSums(as.matrix(spear.res3) > 0)
+consR <- colSums(as.matrix(spear.res3) < 0)
+(proR + antR) / length(spear.res3)
 
+proCR <- sum(spear.ConRes4 > 0)
+conCR <- sum(spear.ConRes4 < 0)
+(proCR + conCR) / sum(spear.ConRes4 != "NA")
 
+specC <- rowSums(as.matrix(spear.ConRes4) < 0)
+genC <- rowSums(as.matrix(spear.ConRes4) > 0)
 
-
-
-order <- rev(attr(spear.bac3, "Labels"))
-plot1 <- levelplot(as.matrix(spear.bac3)[,order], aspect = "iso", col.regions = jet.colors, 
-          xlab = list(label = "OTU", cex = 1.2), ylab = list(label = "OTU", cex = 1.2), 
-          scales = list(cex = 0.3, x = list(rot=90)),
-          main = "Species Co-Occurence")
-plot1
-
-
-
-order <- rev(attr(spear.res3, "Labels"))
-plot2 <- levelplot(as.matrix(spear.res3)[,order], aspect = "iso", col.regions = jet.colors, 
-          xlab = list(label = "Resource", cex = 1.2), ylab = list(label = "Resource", cex = 1.2), 
-          scales = list(cex = 0.3, x = list(rot=90)),
-          main = "Resource Co-Occurence")
-plot2
-
-plot3 <- levelplot(spear.ConRes4, aspect = "iso", col.regions = jet.colors, 
-          xlab = list(label = "Consumer", cex = 1.5), 
-          ylab = list(label = "Resource", cex = 1.5), 
-          scales = list(cex = 0.3, tck = 0.75,
-                        #x = list(labels=colnames(ConRes)[1:100], rot=90),
-                        #y = list(labels=colnames(ConRes)[101:200])),
-                        x = list(rot=90),
-                        y = list()),
-          main = list(label = "Consumer-Resource Co-Occurence", line = 1),
-          par.settings=list(layout.heights=list(top.padding=3, bottom.padding=3)))         
 
 
 
 ```
+
 
 
 
