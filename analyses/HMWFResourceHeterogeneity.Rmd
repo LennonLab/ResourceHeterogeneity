@@ -58,6 +58,7 @@ require("car")
 require("colorspace")
 require("bioDist")
 require("gplots")
+require("igraph")
 ```
 
 # Study System
@@ -1371,15 +1372,77 @@ conCR <- sum(spear.ConRes4 < 0)
 
 specC <- rowSums(as.matrix(spear.ConRes4) < 0)
 genC <- rowSums(as.matrix(spear.ConRes4) > 0)
+```
 
+## Graph Analysis
+```{r, results='hide'}
+png(filename="../figures/Figure6.png",
+    width = 1800, height = 900, res = 96*2)
+par(opar)
 
+# Reorganize Data
+str(spear.ConRes4)
+bac <- rep(rownames(spear.ConRes4), 100)
+res <- rep(colnames(spear.ConRes4), each = 100)
+int <- as.numeric(spear.ConRes4[, 1])
+for (i in 2:100){
+  int = append(int, as.numeric(spear.ConRes4[, i]))
+}
+bac2 <- bac 
+bac2 <- gsub("Otu000", "O", bac2)
 
+# Plot Settings
+layout(matrix(1:2, ncol = 2))
+par(mar = c(1, 1, 2, 1))
 
+# Positive Network
+graph.list.full <- data.frame(bac2, res, int)
+graph.list <- graph.list.full[graph.list.full$int > 0.65, ]
+hmwf.network <- graph.data.frame(graph.list, directed=F)
+hmwf.network <- simplify(hmwf.network)
+V(hmwf.network)$color <- V(hmwf.network)$name
+V(hmwf.network)$color[grepl("O",V(hmwf.network)$color)] <- "cornflowerblue"
+V(hmwf.network)$color[grepl("C",V(hmwf.network)$color)] <- "wheat3" 
+plot(hmwf.network, layout=layout.fruchterman.reingold, 
+     main='Production Network', vertex.label.dist=0,
+     vertex.label.color='black', vertex.label.cex=0.5)
+
+# Negative Network
+graph.list <- graph.list.full[graph.list.full$int < -0.999, ]
+hmwf.network <- graph.data.frame(graph.list, directed=F)
+V(hmwf.network)$color <- V(hmwf.network)$name
+V(hmwf.network)$color[grepl("O",V(hmwf.network)$color)] <- "cornflowerblue"
+V(hmwf.network)$color[grepl("C",V(hmwf.network)$color)] <- "wheat3" 
+plot(hmwf.network, layout=layout.fruchterman.reingold, 
+     main='Consumption Network', vertex.label.dist=0,
+     vertex.label.color='black', vertex.label.cex=0.5)
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+par(opar)
+```
+
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Networks"}
+img <- readPNG("../figures/Figure6.png")
+grid.raster(img)
 ```
 
 
 
+```{r}
 
+hmwf.network<-graph.data.frame(as.matrix(spear.ConRes3)[1:10, 1:10], directed=F)
+graph <- graph.adjacency(as.matrix(spear.bac3)[1:50, 1:50], weighted=TRUE, mode = "lower")
+
+require("network")
+as.network.matrix(as.matrix(spear.ConRes3), "edgelist", bipartite = T)
+
+```
+
+library("qgraph")
+data(big5)
+data(big5groups)
+qgraph(cor(big5),minimum=0.25,cut=0.4,vsize=2,groups=big5groups,legend=TRUE,borders=FALSE)
+title("Big 5 correlations",line=-2,cex.main=2)
 
 
 
