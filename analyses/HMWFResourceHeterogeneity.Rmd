@@ -1391,6 +1391,63 @@ for (i in 2:100){
 bac2 <- bac 
 bac2 <- gsub("Otu000", "O", bac2)
 
+# Connectedness
+
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+
+conn <- data.frame(bac2, res, int)
+connC <- conn[conn$int < -0.5, ]
+dim(connC)[1]
+length(connC$bac2)
+length(unique(connC$bac2))
+length(unique(connC$res))
+Cbac <- unique(connC$bac2)
+Cbac_c <- rep(NA, length(Cbac))
+for (i in 1:length(Cbac)){
+  Cbac_c[i] <- sum(connC$bac2 == Cbac[i])
+}
+mean(Cbac_c)
+sum(Cbac_c > 3)
+Cres <- unique(connC$res)
+Cres_c <- rep(NA, length(Cres))
+for (i in 1:length(Cres)){
+  Cres_c[i] <- sum(connC$res == Cres[i])
+}
+mean(Cres_c)
+sum(Cres_c > 3)
+connP <- conn[conn$int > 0.5, ]
+Pbac <- unique(connP$bac2)
+Pbac_c <- rep(NA, length(Pbac))
+for (i in 1:length(Pbac)){
+  Pbac_c[i] <- sum(connP$bac2 == Pbac[i])
+}
+mean(Pbac_c)
+Pres <- unique(connP$res)
+Pres_c <- rep(NA, length(Pres))
+for (i in 1:length(test)){
+  Pres_c[i] <- sum(connP$res == Pres[i])
+}
+mean(Pres_c)
+
+graph.list <- graph.list.full[graph.list.full$int > 0.5, ]
+hmwf.network <- graph.data.frame(graph.list, directed=F)
+hmwf.network <- simplify(hmwf.network)
+bets <- betweenness(hmwf.network)
+mean(bets[grep("O", names(bets))])
+mean(bets[grep("C", names(bets))])
+
+graph.list <- graph.list.full[graph.list.full$int < -0.5, ]
+hmwf.network <- graph.data.frame(graph.list, directed=F)
+hmwf.network <- simplify(hmwf.network)
+bets <- betweenness(hmwf.network)
+mean(bets[grep("O", names(bets))])
+mean(bets[grep("C", names(bets))])
+
+
 # Plot Settings
 layout(matrix(1:2, ncol = 2))
 par(mar = c(1, 1, 2, 1))
@@ -1400,6 +1457,9 @@ graph.list.full <- data.frame(bac2, res, int)
 graph.list <- graph.list.full[graph.list.full$int > 0.65, ]
 hmwf.network <- graph.data.frame(graph.list, directed=F)
 hmwf.network <- simplify(hmwf.network)
+bets <- betweenness(hmwf.network)
+mean(bets[grep("O", names(bets))])
+mean(bets[grep("C", names(bets))])
 V(hmwf.network)$color <- V(hmwf.network)$name
 V(hmwf.network)$color[grepl("O",V(hmwf.network)$color)] <- "cornflowerblue"
 V(hmwf.network)$color[grepl("C",V(hmwf.network)$color)] <- "wheat3" 
@@ -1410,6 +1470,9 @@ plot(hmwf.network, layout=layout.fruchterman.reingold,
 # Negative Network
 graph.list <- graph.list.full[graph.list.full$int < -0.999, ]
 hmwf.network <- graph.data.frame(graph.list, directed=F)
+bets <- betweenness(hmwf.network)
+mean(bets[grep("O", names(bets))])
+mean(bets[grep("C", names(bets))])
 V(hmwf.network)$color <- V(hmwf.network)$name
 V(hmwf.network)$color[grepl("O",V(hmwf.network)$color)] <- "cornflowerblue"
 V(hmwf.network)$color[grepl("C",V(hmwf.network)$color)] <- "wheat3" 
@@ -1425,26 +1488,6 @@ par(opar)
 img <- readPNG("../figures/Figure6.png")
 grid.raster(img)
 ```
-
-
-
-```{r}
-
-hmwf.network<-graph.data.frame(as.matrix(spear.ConRes3)[1:10, 1:10], directed=F)
-graph <- graph.adjacency(as.matrix(spear.bac3)[1:50, 1:50], weighted=TRUE, mode = "lower")
-
-require("network")
-as.network.matrix(as.matrix(spear.ConRes3), "edgelist", bipartite = T)
-
-```
-
-library("qgraph")
-data(big5)
-data(big5groups)
-qgraph(cor(big5),minimum=0.25,cut=0.4,vsize=2,groups=big5groups,legend=TRUE,borders=FALSE)
-title("Big 5 correlations",line=-2,cex.main=2)
-
-
 
 ## Species Distributions and Generalism
 ```{r}
@@ -1471,12 +1514,12 @@ per.actT <- matrix(NA, dim(total)[1], length(per))
 colnames(per.act) <- per
 colnames(per.actT) <- per
 
-  for (i in 1:length(per)){
+for (i in 1:length(per)){
   activePA.temp <- (active.rna > (total * per[i])) * 1
   active.temp <- total * activePA.temp
   per.act[,i] <- rowSums(active.temp) / rowSums(total)
   per.actT[,i] <- rowSums(activePA.temp) / rowSums(totalPA)
-  }
+}
 
 mean.per.act <- colMeans(per.act)
 se.per.act <- apply(per.act, 2, se)
@@ -1485,8 +1528,9 @@ mean.per.actT <- colMeans(per.actT)
 se.per.actT <- apply(per.actT, 2, se)
 ```
 
+# Supplemental Figure for Active Percent Cutoff
 ```{r, results= 'hide'}
-png(filename="../figures/FigureZ.png",
+png(filename="../figures/Supp3.png",
     width = 900, height = 900, res = 96*2)
 par(opar)
 par(mar = c(4.5,5,1,1) + 0.1)
@@ -1517,6 +1561,7 @@ par(opar)
 
 ## Generalist Taxa
 ```{r}
+# Generalists by Site
 gens <- data.frame(matrix(NA, 21, 3))
 colnames(gens) <- c("sites", "taxaA", "taxaT")
 gens$sites <- c(1:21)
@@ -1525,11 +1570,30 @@ for (i in 1:21){
   gens$taxaA[i] <- sum(colSums(activePA) == i)
   gens$taxaT[i] <- sum(colSums(totalPA) == i)
 }
+
+# Generalists by Consumption
+spear.ConRes4
+consum <- as.matrix(spear.ConRes4) < -0.5
+gensC <- rowSums(abs(consum))
+chem.gen <- names(which(genC > 0))
+
+activePA2 <- activePA[, colnames(activePA) %in% names(gensC)]
+totalPA2 <- totalPA[, colnames(totalPA) %in% names(gensC)]
+gensA <- colSums(activePA2)
+gensT <- colSums(totalPA2)
+gen.mod <- lm(gensC ~ gensT)
+plot(gensC ~ jitter(gensT))
+abline(gen.mod)
+
+spatial.gen <- names(which(colSums(activePA) >= 18))
+length(spatial.gen)
+length(intersect(chem.gen, spatial.gen))
+length(intersect(chem.gen, spatial.gen)) / length(spatial.gen)
 ```
 
 ## Generalists Plot
 ```{r, results= 'hide'}
-png(filename="../figures/FigureY.png",
+png(filename="../figures/Figure7.png",
     width = 900, height = 900, res = 96*2)
 par(opar)
 # Define Plot Parameters
@@ -1569,7 +1633,7 @@ inactive <- total * inactivePA
 
 ## Species Abundance Distribution for Active and Inactive
 ```{r, results= 'hide'}
-png(filename="../figures/FigureX.png",
+png(filename="../figures/Supp4.png",
     width = 1200, height = 1000, res = 96*2)
 par(opar)
 
@@ -1611,59 +1675,29 @@ active.NPA <- (active.N > 0 ) * 1
 plot(rowSums(active.NPA)/rowSums(totalPA), rowSums(inactivePA)/rowSums(totalPA))
 ```
 
+
+# Microbial Function
 ## Phosphorus Contributes to Activity
 ```{r, results= 'hide'}
-png(filename="../figures/Figure6.png",
+png(filename="../figures/Figure7A.png",
     width = 1200, height = 1000, res = 96*2)
 par(opar)
 par(mar=c(5, 5, 1, 1) + 0.1)
-plot(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts$TP[c(order(nuts$sample))]),
-     xlab = expression(paste("Total Phosphorus (", mu , "g L"^-1, ")")),
-     ylab = "Proportion of Active Taxa",
-     las = 1, cex.lab = 1.5, xlim = c(0, 1.8), ylim = c(0.25, 0.75), xaxt = "n",
-     pch = 15, col = "darkorchid4", cex = 1.5)
-axis(side = 1, lwd = 2, at = c(0, 0.7, 1.7), labels = c(0, 5, 50))
-axis(side = 2, lwd = 2, labels = F)
-axis(side = 3, lwd = 2, tck = 0.02, labels = F, at = c(0, 0.7, 1.7))
-axis(side = 4, lwd = 2, tck = 0.02, labels = F)
-axis(side = 1, lwd = 2, tck = -0.02, labels = F, at = c(0, 0.7, 1.7))
-axis(side = 2, lwd = 2, tck = -0.02, labels = F)
-axis(side = 3, lwd = 2, tck = -0.02, labels = F, at = c(0, 0.7, 1.7))
-axis(side = 4, lwd = 2, tck = -0.02, labels = F)
-box(lwd = 2)
-phos <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts$TP[c(order(nuts$sample))]))
-nitro <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts$TN[c(order(nuts$sample))])) # NS
-carb <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts$DOC[c(order(nuts$sample))])) # NS
-mod1 <- summary(phos)
-abline(phos, lty = 2, lwd = 4, col = "darkred")
-Rsq <- round(mod1$r.squared, 2)
-Pv <- round(mod1$coefficients[2,4], 3)
-text(1.5, 0.35, bquote(italic(R)^2 == .(format(Rsq, digits = 3))))
-text(1.5, 0.3, bquote(italic(p) == .(format(Pv, digits = 3))))
+
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices
 par(opar)
 ```
 
 ```{r fig.width=8, fig.height=5,echo=FALSE,fig.cap="Resource Alpha Diversity"}
-img <- readPNG("../figures/Figure6.png")
+img <- readPNG("../figures/Figure7A.png")
 grid.raster(img)
 ```
 
-
-
-But there are other differences between these lakes. 
-For example, algal derived resources differ (as infered from chlorophyll *a* concentrations).
-Additionally, bacterial respiration differs between lakes though there is also temperature dependence with these values as well (temperature between years of sampling). 
-
-# Ecosystem and Microbial Processes
+# Microbial Processes
 ```{r}
 chla <- read.delim("../data/ChlorophyllA.txt")
 resp <- read.delim("../data/Respiration.txt")
-# npp
-# CO2 flux
-# EcoResp
-# DO
 ```
 
 ## Table 3: Ecosystem and Microbial Processes
@@ -1694,7 +1728,97 @@ print(eco.tab, add.to.row = addtorow, include.colnames = FALSE,
       comment = FALSE, hline.after = c(-1, -1, 0, nrow(eco.tab)))
 ```
 
+# Do environmental differences explain bacterial respiration rates
+```{r}
 
+```
+
+## Phosphorus Contributes to Respiration Rate
+```{r, results= 'hide'}
+png(filename="../figures/Figure7.png",
+    width = 1800, height = 1000, res = 96*2)
+par(opar)
+layout(matrix(c(1:2), ncol = 2))
+par(mar=c(2, 5, 1, 1) + 0.1, oma = c(4, 1, 1, 1))
+
+# TP and Active Taxa
+plot(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts$TP[c(order(nuts$sample))]),
+     xlab = "",
+     ylab = "",
+     las = 1, cex.lab = 1.5, xlim = c(0, 1.8), ylim = c(0.25, 0.75), xaxt = "n",
+     pch = 15, col = "darkorchid4", cex = 1.5)
+axis(side = 1, lwd = 2, at = c(0, 0.7, 1.7), labels = c(0, 5, 50))
+axis(side = 2, lwd = 2, labels = F)
+axis(side = 3, lwd = 2, tck = 0.02, labels = F, at = c(0, 0.7, 1.7))
+axis(side = 4, lwd = 2, tck = 0.02, labels = F)
+axis(side = 1, lwd = 2, tck = -0.02, labels = F, at = c(0, 0.7, 1.7))
+axis(side = 2, lwd = 2, tck = -0.02, labels = F)
+axis(side = 3, lwd = 2, tck = -0.02, labels = F, at = c(0, 0.7, 1.7))
+axis(side = 4, lwd = 2, tck = -0.02, labels = F)
+mtext("Proportion of Active Taxa", side = 2, line = 3, cex = 1.5)
+box(lwd = 2)
+pcoa.res <- cmdscale(res.mat, eig = TRUE, k = 2) 
+
+phos <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts$TP[c(order(nuts$sample))]))
+nitro <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts$TN[c(order(nuts$sample))])) # NS
+carb <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts$DOC[c(order(nuts$sample))])) # NS
+res1 <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ rep(pcoa.res$points[, 1], each = 2)) # NS
+res2 <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ rep(pcoa.res$points[, 2], each = 2)) # NS
+mod1 <- summary(phos)
+abline(phos, lty = 2, lwd = 4, col = "darkred")
+Rsq <- round(mod1$r.squared, 2)
+Pv <- round(mod1$coefficients[2,4], 3)
+text(1.5, 0.35, bquote(italic(R)^2 == .(format(Rsq, digits = 3))))
+text(1.5, 0.3, bquote(italic(p) == .(format(Pv, digits = 3))))
+
+
+
+# TP and Respiration
+bac.resp <- c(eco$Resp11, eco$Resp12)
+outl <- nuts$TP[17]
+nuts$TP[17] <- NA
+
+phos <- lm(log(bac.resp) ~ log10(nuts$TP)) 
+nitro <- lm(log(bac.resp) ~ log10(nuts$TN)) # NS
+carb <- lm(log(bac.resp) ~ log10(nuts$DOC)) # NS
+res1 <- lm(log(bac.resp) ~ rep(pcoa.res$points[, 1], 2)) # NS
+res2 <- lm(log(bac.resp) ~ rep(pcoa.res$points[, 2], 2)) # NS
+
+plot(log(bac.resp) ~ log10(nuts$TP),
+     xlab = "",
+     ylab = "",
+     las = 1, cex.lab = 1.5, xlim = c(0, 1.8), ylim = c(-0.3, 1.2), xaxt = "n", yaxt = "n", 
+     pch = 15, col = "darkorchid4", cex = 1.5)
+points(x = log10(outl), y = log10(bac.resp)[17], pch = 15, col = "darkorchid4", cex = 1.5)
+axis(side = 1, lwd = 2, at = c(0, 0.7, 1.7), labels = c(0, 5, 50))
+axis(side = 2, lwd = 2, at = c(0, 0.77, 1.1), labels = c(0, 6, 12), las = 1)
+axis(side = 3, lwd = 2, tck = 0.02, labels = F, at = c(0, 0.7, 1.7))
+axis(side = 4, lwd = 2, at = c(0, 0.77, 1.1), tck = 0.02, labels = F)
+axis(side = 1, lwd = 2, tck = -0.02, labels = F, at = c(0, 0.7, 1.7))
+axis(side = 2, lwd = 2, at = c(0, 0.77, 1.1), tck = -0.02, labels = F)
+axis(side = 3, lwd = 2, tck = -0.02, labels = F, at = c(0, 0.7, 1.7))
+axis(side = 4, lwd = 2, at = c(0, 0.77, 1.1), tck = -0.02, labels = F)
+mtext(expression(paste("Respiration (", mu , "M C L"^-1, ")")), side = 2.5, line = 2, cex = 1.5)
+box(lwd = 2)
+
+mod1 <- summary(phos)
+abline(phos, lty = 2, lwd = 4, col = "darkred")
+Rsq <- round(mod1$r.squared, 2)
+Pv <- round(mod1$coefficients[2,4], 3)
+text(1.5, 1, bquote(italic(R)^2 == .(format(Rsq, digits = 3))))
+text(1.5, 0.85, bquote(italic(p) == .(format(Pv, digits = 3))))
+
+mtext(expression(paste("Total Phosphorus (", mu , "g L"^-1, ")")), side = 1, outer = T, line = 1.5, cex = 1.5)
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+par(opar)
+```
+
+```{r fig.width=8, fig.height=5,echo=FALSE,fig.cap="Resource Alpha Diversity"}
+img <- readPNG("../figures/Figure7.png")
+grid.raster(img)
+```
 
 
 
