@@ -259,6 +259,7 @@ res <- res.hmwf
 
 # Sequencing Coverage
 coverage <- rowSums(res)
+resources <- dim(res)[2]
 
 # # Remove Low Coverage Samples (This code removes two sites: Site 5DNA, Site 6cDNA)
 # lows <- which(coverage < 10000)
@@ -298,10 +299,10 @@ res.div <- as.data.frame(cbind(S.res, res.simpsE, res.shan))
 
 # Summary Stats
 range(res.div$S.res)
-range(res.div$res.shan2)
+range(res.div$res.shan)
 range(res.div$res.simpsE)
 CV(res.div$S.res)
-CV(res.div$res.shan2)
+CV(res.div$res.shan)
 CV(res.div$res.simpsE)
 ```
 
@@ -409,6 +410,7 @@ OTUs <- OTUs.hmwf[, colSums((OTUs.hmwf > 0) * 1)  >= 2 | colSums(OTUs.hmwf >= 10
 
 # Sequencing Coverage
 coverage <- rowSums(OTUs)
+bacteria <- dim(OTUs)[2]
 
 # Good's Coverage
 goods <- function(x = ""){
@@ -470,21 +472,34 @@ alpha.div <- alpha.div[order(alpha.div$Lake, alpha.div$Year, alpha.div$Molecule)
 
 ## Alpha Diversity Statistics
 ```{r}
-div.mod1 <- aov(S.obs ~ Lake, data = alpha.div)
+# Summary Stats
+range(alpha.div$S.rar)
+CV(alpha.div$S.rar)
+CV(alpha.div$S.rar[alpha.div$Lake != "Pony" & alpha.div$Lake != "Lily"])
+
+div.mod1 <- Anova(lm(S.rar ~ Lake + Molecule, 
+                     data = alpha.div[alpha.div$Lake != "Pony" & 
+                                      alpha.div$Lake != "Lily", ]))
+div.mod2 <- Anova(lm(S.rar ~ Molecule, data = alpha.div[alpha.div$Lake != 
+                                     "Pony" & alpha.div$Lake != "Lily", ]))
+
+CV(alpha.div$simpsE)
+div.mod3 <- Anova(lm(simpsE ~ Lake + Molecule, data = alpha.div[alpha.div$Lake != 
+                                     "Pony" & alpha.div$Lake != "Lily", ]))
+
+
+CV(alpha.div$shan)
+
+div.mod1 <- Anova(lm(S.rar ~ Lake, data = alpha.div))
 # TukeyHSD(div.mod1)
 div.mod2 <- aov(simpsE ~ Lake, data = alpha.div)
 # TukeyHSD(div.mod2)
-div.mod3 <- aov(S.rar ~ Lake + Molecule, data = alpha.div)
+div.mod3 <- Anova(lm(S.rar ~ Lake + Molecule, data = alpha.div))
 # TukeyHSD(div.mod3)
 div.mod3 <- lm(S.rar ~ Lake + Molecule, data = alpha.div)
 # Anova(div.mod3)
 div.mod4 <- aov(S.rar ~ Lake + as.factor(Year), data = alpha.div)
-# TukeyHSD(div.mod4)
-div.mod5 <- aov(S.rar ~ Lake, data = alpha.div[alpha.div$Lake != "Pony" & 
-                                                alpha.div$Lake != "Lily", ])
-div.mod5 <- lm(S.rar ~ Lake + Molecule, data = alpha.div[alpha.div$Lake != "Pony" & 
-                                                alpha.div$Lake != "Lily", ])
-Anova(div.mod5)
+
 ```
 
 ## Lake Phylogenetic Diversity
@@ -506,19 +521,19 @@ PSR <- psr(OTUs, prunedTree, compute.var = F)
 PSR <- psr(OTUs.rar, prunedTree, compute.var = F)
 PSD <- psd(OTUs, prunedTree, compute.var = F)
 # specaccum.psr(OTUs, prunedTree, permutations = 100, method = "random")
-# plot(faiths$PD ~ faiths$SR)
+cor.test(faiths$PD, faiths$SR)
 # plot(PSR$PSR ~ PSR$SR)
 ```
 
 ## Phylogenetic Diversity Statistics
 ```{r}
 faiths2 <- cbind(faiths, alpha.div)
-phy.mod1 <- aov(PD ~ Lake, data = faiths2)
-summary(phy.mod1)
-# TukeyHSD(phy.mod1)
-phy.mod2 <- aov(PD ~ Lake + Molecule, data = faiths2[faiths2$Lake != "Pony" & 
-                                                faiths2$Lake != "Lily", ])
-summary(phy.mod2)
+phy.mod1 <- Anova(lm(PD ~ Lake + Molecule, data = faiths2))
+
+phy.mod2 <- Anova(lm(PD ~ Lake + Molecule, 
+                     data = faiths2[faiths2$Lake != "Pony" & 
+                            faiths2$Lake != "Lily", ]))
+
 phy.mod3 <- aov(PD ~ Lake + Molecule, data = faiths2)
 summary(phy.mod3)
 phy.mod4 <- lm(PD ~ Lake + Molecule, data = faiths2)
@@ -526,8 +541,14 @@ phy.mod4 <- lm(PD ~ Lake + Molecule, data = faiths2)
 DNA.PD <- mean(faiths2$PD[faiths2$Molecule == "DNA"])
 RNA.PD <- mean(faiths2$PD[faiths2$Molecule == "RNA"])
 
-phy.mod4 <- lm(PD ~ SR + Lake + Molecule, data = faiths2)
-Anova(phy.mod4)
+phy.mod4 <- Anova(lm(PD ~ SR + Lake + Molecule, 
+                     data = faiths2[faiths2$Lake != "Pony" & 
+                            faiths2$Lake != "Lily", ]))
+
+faiths2
+# Average Difference
+mean((faiths2$PD[faiths2$Molecule == "DNA"] - faiths2$PD[faiths2$Molecule == "RNA"]) / 
+  faiths2$PD[faiths2$Molecule == "DNA"])
 
 ```
 
@@ -578,9 +599,9 @@ div.D <- div.raw[div.raw$Molecule == "DNA", ]
 div.R <- div.raw[div.raw$Molecule == "RNA", ]
 t.test(div.D$S.rar, div.R$S.rar, paired = T)
 
-mod1 <- lm(div.raw$S.rar ~ as.factor(div.raw$Lake) + 
-             as.factor(div.raw$Year) + as.factor(div.raw$Molecule))
-Anova(mod1)
+mod1 <- Anova(lm(div.raw$S.rar ~ as.factor(div.raw$Lake) + 
+             as.factor(div.raw$Year) + as.factor(div.raw$Molecule)))
+
 ```
 
 ## Calculate and Visualize Beta Diversity
@@ -600,10 +621,9 @@ hmwf.bray.PA <- vegdist(OTUsPA, method = "bray")
 hmwf.bray.REL <- vegdist(OTUsREL, method = "bray")
 hmwf.bray.Log <- vegdist(OTUsREL.log, method = "bray")
 
-# Import UniFrac Distances
-hmwf.uni.in <- read.table("../fasttree/HMWF.bac.0.03.gg.tree1.weighted.phylip.dist", skip=1, row.names = 1)
-hmwf.uni <- as.dist(hmwf.uni.in)
+avg.b <- mean(hmwf.bray.REL)
 
+# Calculate UniFrac Distances
 OTU.tab <- otu_table(OTUsREL, taxa_are_rows = F)
 OTU.tab.l <- otu_table(OTUsREL.log, taxa_are_rows = F)
 PHY.tree <- phy_tree(hmwf.tree)
@@ -612,6 +632,8 @@ phylo.seq.l <- phyloseq(OTU.tab.l, PHY.tree)
 uni.frac.u <- UniFrac(phylo.seq, weighted = FALSE, normalized = TRUE)
 uni.frac.w <- UniFrac(phylo.seq, weighted = TRUE, normalized = TRUE)
 uni.frac.wl <- UniFrac(phylo.seq.l, weighted = TRUE, normalized = TRUE)
+
+avg.u <- mean(uni.frac.w)
 ```
 
 ## Principal Coordinates Analysis 
@@ -660,6 +682,8 @@ sum.eig.ufwl <- sum(explainvar1.ufwl, explainvar2.ufwl, explainvar3.ufwl)
 
 dis.meanB <- mean(hmwf.bray.REL)
 dis.meanU <- mean(uni.frac.w)
+
+cor.test(pcoa.rel$points[, 1], pcoa.ufw$points[, 2])
 
 ```
 
@@ -837,19 +861,15 @@ print(per.tab, add.to.row = addtorow, include.colnames = FALSE,
 ```
 
 
+# Nutrient Concentrations Explain BCC and DOM Composition
 
 ## Resource Diversity (Evennes) and Nutrient Concentrations
 ```{r}
 nuts2012 <- nuts[nuts$year == "2012", ]
-evenmod <- glm(res.div$res.simpsE ~ nuts2012$DOC+nuts2012$TN+nuts2012$TP)
+evenmod <- lm(res.div$res.simpsE ~ nuts2012$TN+nuts2012$TP)
 # Not using this because variation in resource alpha doesn't appear to be meaningful
 ```
 
-
-
-
-
-# Nutrient Concentrations Explain BCC and DOM Composition
 
 ## Distance Based Redundancy Analysis
 ```{r, results = 'hide'}
@@ -886,16 +906,15 @@ Uni.REL.R <- UniFrac(phylo.seq.R, weighted = TRUE, normalized = TRUE)
 Bray.OM <- vegdist(resREL, "bray")
 
 # Conduct dbRDA 
-hmwf.bray.D.rda <- capscale(Bray.REL.D ~ env.chem$DOC + env.chem$TP + env.chem$TN, 
+hmwf.bray.D.rda <- capscale(Bray.REL.D ~ env.chem$TN + env.chem$TP, 
                             comm = OTUsREL.D, add = T)
-hmwf.bray.R.rda <- capscale(Bray.REL.R ~ env.chem$DOC + env.chem$TP + env.chem$TN, 
+hmwf.bray.R.rda <- capscale(Bray.REL.R ~ env.chem$TN + env.chem$TP, 
                             comm = OTUsREL.R, add = T)
-hmwf.uni.D.rda <- capscale(Uni.REL.R ~ env.chem$DOC + env.chem$TP + env.chem$TN, 
+hmwf.uni.D.rda <- capscale(Uni.REL.R ~ env.chem$TN + env.chem$TP, 
                            comm = OTUsREL.D, add = T)
-hmwf.uni.R.rda <- capscale(Uni.REL.R ~ env.chem$DOC + env.chem$TP + env.chem$TN, 
+hmwf.uni.R.rda <- capscale(Uni.REL.R ~ env.chem$TN + env.chem$TP, 
                             comm = OTUsREL.R, add = T)
-hmwf.res.rda <- capscale(Bray.OM ~ env.chem2012$DOC + 
-                         env.chem2012$TP + env.chem2012$TN,
+hmwf.res.rda <- capscale(Bray.OM ~ env.chem2012$TN + env.chem2012$TP,
                          comm = resREL, add = T)
 
 anova(hmwf.bray.D.rda)
@@ -926,9 +945,9 @@ OTUsREL.D.L <- OTUsREL[design$Molecule == "DNA" & design$Lake != "Pony" & design
 OTUsREL.R.L <- OTUsREL[design$Molecule == "RNA" & design$Lake != "Pony" & design$Lake != "Lily", ]
 Bray.REL.D.L <- vegdist(OTUsREL.D.L, "bray")
 Bray.REL.R.L <- vegdist(OTUsREL.R.L, "bray")
-hmwf.bray.D.L.rda <- capscale(Bray.REL.D.L ~ env.chem.L$DOC + env.chem.L$TP + env.chem.L$TN, 
+hmwf.bray.D.L.rda <- capscale(Bray.REL.D.L ~ env.chem.L$TN + env.chem.L$TP, 
                             comm = OTUsREL.D.L, add = T)
-hmwf.bray.R.L.rda <- capscale(Bray.REL.R.L ~ env.chem.L$DOC + env.chem.L$TP + env.chem.L$TN, 
+hmwf.bray.R.L.rda <- capscale(Bray.REL.R.L ~ env.chem.L$TN + env.chem.L$TP, 
                             comm = OTUsREL.R.L, add = T)
 anova(hmwf.bray.D.L.rda)
 RsquareAdj(hmwf.bray.D.L.rda)
@@ -942,9 +961,9 @@ anova(hmwf.uni.D.rda, by = "terms")
 anova(hmwf.uni.R.rda, by = "terms")
 
 
-hmwf.bray.D.L.rda <- capscale(Bray.REL.D.L ~ env.chem.L$DOC + env.chem.L$TN, 
+hmwf.bray.D.L.rda <- capscale(Bray.REL.D.L ~ env.chem.L$TN, 
                             comm = OTUsREL.D.L, add = T)
-hmwf.bray.R.L.rda <- capscale(Bray.REL.R.L ~ env.chem.L$DOC + env.chem.L$TN, 
+hmwf.bray.R.L.rda <- capscale(Bray.REL.R.L ~ env.chem.L$TN, 
                             comm = OTUsREL.R.L, add = T)
 anova(hmwf.bray.D.L.rda)
 RsquareAdj(hmwf.bray.D.L.rda)
@@ -971,9 +990,9 @@ layout(matrix(c(1:4), ncol = 2, byrow = T))
 par(mar = c(5, 5, 3, 2) + 0.1, oma = c(1, 1, 1, 1))
 
 # Initiate Plot 1
-plot(scores(hmwf.bray.D.rda, display = "wa"), xlim = c(-1, 2), ylim = c(-1.5, 2),
-     xlab = paste("dbRDA 1 (", rda.D.explainvar1, "%)", sep = ""),
-     ylab = paste("dbRDA 2 (", rda.D.explainvar2, "%)", sep = ""),
+plot(scores(hmwf.uni.D.rda, display = "wa"), xlim = c(-1, 2), ylim = c(-1.5, 2),
+     xlab = paste("dbRDA 1 (", rda.UD.explainvar1, "%)", sep = ""),
+     ylab = paste("dbRDA 2 (", rda.UD.explainvar2, "%)", sep = ""),
      pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
 
 # Add Axes
@@ -983,15 +1002,15 @@ abline(h = 0, v = 0, lty = 3)
 box(lwd = 2)
 
 # Add Points & Labels
-points(scores(hmwf.bray.D.rda, display = "wa"),
+points(scores(hmwf.uni.D.rda, display = "wa"),
        pch = 16, cex = 2, bg = "gray", col = designDNA$lake.col)
 
 # Add Environmental Vectors
-vectors <- scores(hmwf.bray.D.rda, display = "bp")
-row.names(vectors) <- c("DOC", "TP", "TN")
+vectors <- scores(hmwf.uni.D.rda, display = "bp")
+row.names(vectors) <- c("TN", "TP")
 arrows(0, 0, vectors[,1] , vectors[, 2], 
        lwd = 2, lty = 1, length = 0.2, col = "red")
-text(vectors[,1], vectors[, 2], pos = c(3, 1, 1), 
+text(vectors[,1], vectors[, 2], pos = c(1, 1), 
      labels = row.names(vectors), col = "red", cex = 0.8)
 axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
      at = c(-0.5, 0, 0.5, 1, 1.5), 
@@ -1001,9 +1020,9 @@ axis(side = 4, lwd.ticks=2, cex.axis = 0.8, las = 1, col = "red", lwd = 2.2,
      labels = c(-1, 0, 1), col.axis = "red")
 
 # Initiate Plot 2
-plot(scores(hmwf.bray.R.rda, display = "wa"), xlim = c(-1, 2), ylim = c(-1.5, 2),
-     xlab = paste("dbRDA 1 (", rda.R.explainvar1, "%)", sep = ""),
-     ylab = paste("dbRDA 2 (", rda.R.explainvar2, "%)", sep = ""),
+plot(scores(hmwf.uni.R.rda, display = "wa"), xlim = c(-1, 2), ylim = c(-1.5, 2),
+     xlab = paste("dbRDA 1 (", rda.UR.explainvar1, "%)", sep = ""),
+     ylab = paste("dbRDA 2 (", rda.UR.explainvar2, "%)", sep = ""),
      pch = 17, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
 
 # Add Axes
@@ -1013,15 +1032,15 @@ abline(h = 0, v = 0, lty = 3)
 box(lwd = 2)
 
 # Add Points & Labels
-points(scores(hmwf.bray.R.rda, display = "wa"),
+points(scores(hmwf.uni.R.rda, display = "wa"),
        pch = 17, cex = 2, bg = "gray", col = designRNA$lake.col)
 
 # Add Environmental Vectors
-vectors <- scores(hmwf.bray.R.rda, display = "bp")
-row.names(vectors) <- c("DOC", "TP", "TN")
+vectors <- scores(hmwf.uni.R.rda, display = "bp")
+row.names(vectors) <- c("TN", "TP")
 arrows(0, 0, vectors[,1] , vectors[, 2], 
        lwd = 2, lty = 1, length = 0.2, col = "red")
-text(vectors[,1], vectors[, 2], pos = c(3, 1, 1), 
+text(vectors[,1], vectors[, 2], pos = c(1, 1), 
      labels = row.names(vectors), col = "red", cex = 0.8)
 axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
      at = c(-0.5, 0, 0.5, 1, 1.5), 
@@ -1048,10 +1067,10 @@ points(scores(hmwf.res.rda, display = "wa"),
 
 # Add Environmental Vectors
 vectors <- scores(hmwf.res.rda, display = "bp")
-row.names(vectors) <- c("DOC", "TP", "TN")
+row.names(vectors) <- c("TN", "TP")
 arrows(0, 0, vectors[,1] , vectors[, 2], 
        lwd = 2, lty = 1, length = 0.2, col = "red")
-text(vectors[,1], vectors[, 2], pos = c(3, 1, 1), 
+text(vectors[,1], vectors[, 2], pos = c(1, 1), 
      labels = row.names(vectors), col = "red", cex = 0.8)
 axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
      at = c(-0.5, 0, 0.5, 1, 1.5), 
@@ -1112,10 +1131,20 @@ hmwf.bray.D.res.rda <- capscale(Bray.REL2012.D ~ PcoA.RES$points,
                             comm = OTUsREL2012.D, add = T)
 hmwf.bray.R.res.rda <- capscale(Bray.REL2012.R ~ PcoA.RES$points, 
                             comm = OTUsREL2012.R, add = T)
-hmwf.uni.D.res.rda <- capscale(Uni.REL2012.R ~ PcoA.RES$points, 
+hmwf.uni.D.res.rda <- capscale(Uni.REL2012.D ~ PcoA.RES$points, 
                            comm = OTUsREL2012.D, add = T)
 hmwf.uni.R.res.rda <- capscale(Uni.REL2012.R ~ PcoA.RES$points, 
                             comm = OTUsREL2012.R, add = T)
+
+# Eigenanalysis
+rda.resD.explainvar1 <- round(hmwf.uni.D.res.rda$CCA$eig[1] /
+                                sum(hmwf.uni.D.res.rda$CCA$eig), 3) * 100
+rda.resD.explainvar2 <- round(hmwf.uni.D.res.rda$CCA$eig[2] /
+                                sum(hmwf.uni.D.res.rda$CCA$eig), 3) * 100
+rda.resR.explainvar1 <- round(hmwf.uni.R.res.rda$CCA$eig[1] /
+                                sum(hmwf.uni.R.res.rda$CCA$eig), 3) * 100
+rda.resR.explainvar2 <- round(hmwf.uni.R.res.rda$CCA$eig[2] /
+                                sum(hmwf.uni.R.res.rda$CCA$eig), 3) * 100
 
 # Tests
 anova(hmwf.bray.D.res.rda)
@@ -1150,6 +1179,96 @@ RsquareAdj(hmwf.uni.D.res.rda2)
 anova(hmwf.uni.R.res.rda2)
 RsquareAdj(hmwf.uni.R.res.rda2)
 ```
+
+## Plot
+```{r, results='hide'}
+png(filename="../figures/Figure4.png",
+    width = 1800, height = 900, res = 96*2, bg = "white")
+par(opar)
+# Define Plot Parameters
+layout(matrix(c(1, 1, 2, 2, 3), ncol = 5, byrow = T))
+par(mar = c(4, 5, 1, 1) + 0.5, oma = c(1, 1, 1, 1))
+
+# Initiate Plot 1
+plot(scores(hmwf.uni.D.res.rda, display = "wa"), xlim = c(-1, 1), ylim = c(-1, 1),
+     xlab = paste("dbRDA 1 (", rda.resD.explainvar1, "%)", sep = ""),
+     ylab = paste("dbRDA 2 (", rda.resD.explainvar2, "%)", sep = ""),
+     pch = 15, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
+
+# Add Axes
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+# Add Points & Labels
+points(scores(hmwf.uni.D.res.rda, display = "wa"),
+       pch = 16, cex = 2, bg = "gray", col = designRES$lake.col)
+
+# Add Environmental Vectors
+vectors <- scores(hmwf.uni.D.res.rda, display = "bp")
+row.names(vectors) <- c("1", "2", "3", "4")
+arrows(0, 0, vectors[c(1:2),1] , vectors[c(1:2), 2], 
+       lwd = 2, lty = 1, length = 0.2, col = "red")
+text(vectors[c(1:2),1], vectors[c(1:2), 2], pos = c(1, 1), 
+     labels = row.names(vectors)[1:2], col = "red", cex = 0.8)
+axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
+     at = c(-0.5, 0, 0.5), 
+     labels = c(-0.5, 0, 0.5), col.axis = "red")
+axis(side = 4, lwd.ticks=2, cex.axis = 0.8, las = 1, col = "red", lwd = 2.2, 
+     at = c(-0.5, 0, 0.5), 
+     labels = c(-0.5, 0, 0.5), col.axis = "red")
+
+# Initiate Plot 2
+plot(scores(hmwf.uni.R.res.rda, display = "wa"), xlim = c(-1, 1), ylim = c(-1, 1),
+     xlab = paste("dbRDA 1 (", rda.resR.explainvar1, "%)", sep = ""),
+     ylab = paste("dbRDA 2 (", rda.resR.explainvar2, "%)", sep = ""),
+     pch = 15, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
+
+# Add Axes
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+# Add Points & Labels
+points(scores(hmwf.uni.R.res.rda, display = "wa"),
+       pch = 17, cex = 2, bg = "gray", col = designRES$lake.col)
+
+# Add Environmental Vectors
+vectors <- scores(hmwf.uni.R.res.rda, display = "bp")
+row.names(vectors) <- c("1", "2", "3", "4")
+arrows(0, 0, vectors[c(1:2),1] , vectors[c(1:2), 2], 
+       lwd = 2, lty = 1, length = 0.2, col = "red")
+text(vectors[c(1:2),1], vectors[c(1:2), 2], pos = c(1, 1), 
+     labels = row.names(vectors)[1:2], col = "red", cex = 0.8)
+axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
+     at = c(-0.5, 0, 0.5), 
+     labels = c(-0.5, 0, 0.5), col.axis = "red")
+axis(side = 4, lwd.ticks=2, cex.axis = 0.8, las = 1, col = "red", lwd = 2.2, 
+     at = c(-0.5, 0, 0.5), 
+     labels = c(-0.5, 0, 0.5), col.axis = "red")
+
+# Add Legends as Plot 3
+par(mar = c(4, 0, 1, 0) + 0.5)
+plot.new()
+legend("bottomleft", c("DNA", "RNA"), pch = c(16, 17), 
+       col = "gray", bty = "n", pt.cex = 1.5, cex = 1.5, 
+       y.intersp = 1.25, inset = c(0, 0, 0, 0.1))
+legend("topleft", levels(design$Lake), ncol = 1, pch = 16, col = 1:10, 
+       bty = "n", pt.cex = 1.5, cex = 1.5, y.intersp = 1.25, 
+       inset = c(0, 0, 0, 0.1))
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+par(opar)
+```
+
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="DOM and BCC dbRDA"}
+img <- readPNG("../figures/Figure4.png")
+grid.raster(img)
+```
+
 
 # Co-Occurance Analysis
 To attempt to understand the relationship between organic matter and community composition, we decided to use co-occurance analaysis to do pair-wise comparisions. 
