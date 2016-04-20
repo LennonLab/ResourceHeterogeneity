@@ -171,6 +171,10 @@ t.test(nuts$TP[nuts$year == "2011"],
        nuts$TP[nuts$year == "2012"], paired = T)
 nuts$TP[nuts$year == "2011"] - nuts$TP[nuts$year == "2012"]
 range(nuts$DOC);range(nuts$TN);range(nuts$TP)
+
+cor.test(nuts$DOC, nuts$TN)
+cor.test(nuts$TN, nuts$TP)
+cor.test(nuts$DOC, nuts$TP)
 ```
 
 
@@ -850,7 +854,7 @@ evenmod <- glm(res.div$res.simpsE ~ nuts2012$DOC+nuts2012$TN+nuts2012$TP)
 ## Distance Based Redundancy Analysis
 ```{r, results = 'hide'}
 # Define Environmental Matrix
-env.chem <- as.data.frame(scale(apply(nuts[,3:5], 2, log)))
+env.chem <- as.data.frame(scale(apply(nuts[,c(3:5)], 2, log10)))
 row.names(env.chem) <- paste(nuts$sample, nuts$year, sep = "-")
 env.chem <- as.data.frame(env.chem[sort(row.names(env.chem)), ])
 
