@@ -97,8 +97,9 @@ in.name <- c(rep("Howe", 3), rep("Empty", 3),
              rep("Rush", 3), rep("Empty", 3),
              rep("Pony", 3), rep("Empty", 3),
              rep("Empty", 3), rep("Empty", 3))
-PreSens.Respiration2(infile = input, outfile = output, start = 70,
-                     end = 90, name.in = in.name)
+# PreSens.Respiration(infile = input, outfile = "./test.txt", in.format = "Rows")
+PreSens.Respiration2(infile = input, outfile = output, start = 90,
+                     end = 100, name.in = in.name)
 
 # HMWF 2012 Set 2 Day 2
 input  <-  "../data/PreSens/HMWF2012_189_Oxygen.txt"
@@ -107,7 +108,7 @@ in.name <- c(rep("Empty", 3), rep("Ives", 3),
              rep("Empty", 3), rep("Lily", 3),
              rep("Empty", 3), rep("Empty", 3),
              rep("Empty", 3), rep("Empty", 3))
-PreSens.Respiration2(infile = input, outfile = output, start = 110,
+PreSens.Respiration2(infile = input, outfile = output, start = 118,
                      end = 130, name.in = in.name)
 
 # Import Individual Output Files
