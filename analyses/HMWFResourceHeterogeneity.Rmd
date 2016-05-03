@@ -30,7 +30,7 @@ opar <- par(no.readonly = TRUE)  # Saves plot defaults
 
 # Load Required Packages
 require("xtable");require("png");require("grid");require("vegan")
-require("picante");require("phyloseq");require("car")
+require("picante");require("phyloseq");require("car"); require("ade4")
 require("colorspace");require("bioDist");require("gplots")
 require("igraph");library("BiodiversityR")
 ```
@@ -140,8 +140,7 @@ for(i in 1:dim(OTUs)[1]){
 OTUsREL.log <- decostand(OTUs, method="log")
 ```
 
-# Site Based Variation
-## Statistical Description of Nutrients
+# Statistical Description of Resources
 ```{r}
 range(nuts$DOC);range(nuts$TN);range(nuts$TP)
 
@@ -149,26 +148,23 @@ CV(nuts$DOC)
 CV(nuts$TN)
 CV(nuts$TP)
 
-plot(log10(nuts[,3:5]))
 cor.test(nuts$DOC, nuts$TN)
 cor.test(nuts$TN, nuts$TP)
 cor.test(nuts$DOC, nuts$TP)
 
-a.tn <- Anova(lm(TN ~ as.factor(Site) + as.factor(Year), data = nuts))
-a.doc <- Anova(lm(DOC ~ as.factor(Site) + as.factor(Year), data = nuts))
-a.tp <- Anova(lm(TP ~ as.factor(Site) + as.factor(Year), data = nuts))
 
-t.test(nuts$DOC[nuts$Year == "2011"], 
-       nuts$DOC[nuts$Year == "2012"], paired = T)
-t.test(nuts$TN[nuts$Year == "2011"], 
-       nuts$TN[nuts$Year == "2012"], paired = T)
-t.test(nuts$TP[nuts$Year == "2011"], 
-       nuts$TP[nuts$Year == "2012"], paired = T)
+# Principal Components Axis
+nuts.pca <- princomp(nuts[, 4:5])
+summary(nuts.pca)
+nuts.axis <- nuts.pca$scores[,1]
 
-nuts$TP[nuts$Year == "2011"] - nuts$TP[nuts$Year == "2012"]
+PCA.res <- princomp(cbind(scale(nuts$DOC), scale(nuts$TN), scale(nuts$TP)))
+summary(PCA.res)
+     
+PCA.res1 <- scale(PCA.res$scores[,1])
 ```
 
-## Statistical Description of DOM
+# Statistical Description of DOM Structural Diversity 
 ```{r}
 # Observed Richness
 S.res <- rowSums((res > 0) * 1)
@@ -191,7 +187,31 @@ CV(res.div$res.shan)
 CV(res.div$res.simpsE)
 ```
 
-## Statistical Description of BCC
+# DOM Compositional Diversity
+```{r}
+# Calculate Bray-Curtis 
+hmwf.bray.res <- vegdist(res, method = "bray")
+
+dis.mean <- mean(hmwf.bray.res)
+
+# Principal Coordinates Analysis
+pcoa.res <- cmdscale(hmwf.bray.res, eig = TRUE, k = 3) 
+explainvar1.res <- round(pcoa.res$eig[1] / sum(pcoa.res$eig), 3) * 100
+explainvar2.res <- round(pcoa.res$eig[2] / sum(pcoa.res$eig), 3) * 100
+explainvar3.res <- round(pcoa.res$eig[3] / sum(pcoa.res$eig), 3) * 100
+sum.eig.res <- sum(explainvar1.res, explainvar2.res)
+
+# DOM Scores
+dom.scores <- add.spec.scores(pcoa.res,resREL,method="cor.scores",multi=1,Rscale=F,scaling="1")
+dom.scores <- as.matrix(dom.scores$cproj)[,1:2]
+dom.scores <- dom.scores[abs(dom.scores[,1]) > 0.7 | abs(dom.scores[,2]) > 0.7, ]
+
+write.table(round(dom.scores, 3), file = "../data/HMWF_DOM.txt", sep = "\t", quote = F,
+            col.names = NA)
+```
+
+
+# Statistical Description of BCC
 ```{r}
 # Observed Richness
 S.obs <- rowSums((OTUs > 0) * 1)
@@ -212,7 +232,9 @@ alpha.div <- alpha.div[order(alpha.div$Lake, alpha.div$Year, alpha.div$Molecule)
 range(alpha.div$S.rar)
 CV(alpha.div$S.rar)
 CV(alpha.div$S.rar[alpha.div$Lake != "Pony" & alpha.div$Lake != "Lily"])
+range(alpha.div$S.rar[alpha.div$Lake != "Pony" & alpha.div$Lake != "Lily"])
 CV(alpha.div$simpsE)
+range(alpha.div$simpsE)
 CV(alpha.div$shan)
 
 div.mod1 <- Anova(lm(S.rar ~ Lake + Molecule, 
@@ -226,10 +248,12 @@ div.mod3 <- Anova(lm(simpsE ~ Lake + Molecule, data = alpha.div[alpha.div$Lake !
                                      "Pony" & alpha.div$Lake != "Lily", ]))
 ```
 
-## Patterns Between Nutrients, DOM, and BCC
+# Resource Heterogeneity and Community Diversity
+## Structural Relationships
 ```{r}
 # Nutrients and DOM
 cor(res.div, log10(nuts[nuts$Year == "2012", 3:5]))
+cor.test(res.div$S.res, log10(nuts$TN[nuts$Year == "2012"]))
 cor(res.div[rownames(res.div) != "Pony", ], 
     log10(nuts[nuts$Year == "2012" & nuts$Site != "Pony", 3:5]))
 cor.test(res.div$S.res[rownames(res.div) != "Pony"],  #Dropped Pony
@@ -247,12 +271,142 @@ cor.test(alpha.div$simpsE[alpha.div$Molecule == "RNA" & alpha.div$Year == "2012"
 
 ## Only Significant Correlation is S.Even and DOM.Rich
 ```{r, results = "hide"}
+
+
+# Scale and Center Nutrients
+nuts2012 <- nuts[nuts$Year == "2012", ]
+nuts2012.s <- nuts2012
+nuts2012.s$DOC <- as.numeric(scale(log10(nuts2012.s$DOC)))
+nuts2012.s$TN <- as.numeric(scale(log10(nuts2012.s$TN)))
+nuts2012.s$TP <- as.numeric(scale(log10(nuts2012.s$TP)))
+
+# Active Community in 2012
+alpha.div2012A <- alpha.div[alpha.div$Molecule == "RNA" & 
+                              alpha.div$Year == "2012", ]
+
+# Models
+mod1 <- lm(S.rar ~ TP, 
+           data = data.frame(alpha.div2012A[alpha.div2012A$Lake != "Pony", ],
+                        nuts2012.s[nuts2012.s$Site != "Pony", ]))
+pred.frame1 <- data.frame(TP = seq(-1.8, 2.5, 0.1))
+
+mod2 <- lm(simpsE ~ TP, 
+           data = data.frame(alpha.div2012A[alpha.div2012A$Lake != "Pony", ],
+                        nuts2012.s[nuts2012.s$Site != "Pony", ]))
+pred.frame2 <- data.frame(TP = seq(-1.8, 2.5, 0.1))
+
+mod3 <- lm(S.rar ~ S.res, 
+           data = data.frame(alpha.div2012A[alpha.div2012A$Lake != "Pony", ], 
+                        res.div[rownames(res.div) != "Pony", ]))
+pred.frame3 <- data.frame(S.res = seq(528,570,2))
+
+mod4 <- lm(simpsE ~ S.res, 
+           data = data.frame(alpha.div2012A[alpha.div2012A$Lake != "Pony", ], 
+                        res.div[rownames(res.div) != "Pony", ]))
+pred.frame4 <- data.frame(S.res = seq(528,570,2))
+
+# Confidence Hulls
+add.hull <- function(model = "", pred.frame = ""){
+  CI.U <- predict(model, interval = "c", newdata=pred.frame)[, "upr"]
+  CI.L <- predict(model, interval = "c", newdata=pred.frame)[, "lwr"]
+  pred.frame2 <- unlist(pred.frame)
+  X.Vec <- c(pred.frame2, tail(pred.frame2, 1), rev(pred.frame2),
+               head(pred.frame2, 1))
+  Y.Vec <- c(CI.U, tail(CI.L, 1), rev(CI.L), head(CI.U,1))
+  polygon(X.Vec, Y.Vec, col = "gray90", border = NA)
+}
+
+png(filename="../figures/Figure1.png",
+    width = 1600, height = 1600, res = 96*2, bg = "white")
+par(opar)
+
+layout(matrix(1:4, nrow = 2, byrow = F))
 par(mar = c(5, 6, 1, 1) + 0.1)
-plot(res.div$S.res, alpha.div$simpsE[alpha.div$Molecule == "RNA" & 
-     alpha.div$Year == "2012"], 
-     xlab = "", ylab = "",
-     xlim = c(525, 575), ylim = c(0, 0.05), las = 1,
+
+# Nuts vs Sbac
+plot(nuts2012.s$TP, alpha.div2012A$S.rar, 
+     xlab = "", ylab = "", axes = F,
+     xlim = c(-2, 2.6), ylim = c(0, 2200), las = 1,
      pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+add.hull(model = mod1, pred.frame = pred.frame1)
+matlines(pred.frame1, predict(mod1, interval = "c", newdata=pred.frame1),
+         lty=c(2,3,3), lwd=c(4,2,2), col="black")
+points(nuts2012.s$TP, alpha.div2012A$S.rar, 
+       pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+points(nuts2012.s$TN, alpha.div2012A$S.rar, 
+     pch = 21, col = "black", bg = "gray", cex = 2, lwd = 2)
+mtext("Nutrients", side = 1, line = 3, cex = 1.5)
+mtext("Species Richness", side = 2, line = 3.5, cex = 1.5)
+legend("topleft", legend = c("TP", "TN"), bty = "n", pch = c(22, 21),
+       col = "black", pt.bg = "gray", pt.lwd = 2, pt.cex = 1.5, bg = "white")
+axis(1, lwd = 2, labels = c("low", "medium", "high"), at = c(-2, 0, 2))
+axis(2, lwd = 2, labels = T, las = 1)
+axis(3, lwd = 2, tck = -0.02, labels = F)
+axis(4, lwd = 2, tck = -0.02, labels = F)
+axis(1, lwd = 2, tck = 0.02, labels = F)
+axis(2, lwd = 2, tck = 0.02, labels = F)
+axis(3, lwd = 2, tck = 0.02, labels = F)
+axis(4, lwd = 2, tck = 0.02, labels = F)
+box(lwd = 2)
+
+# Nuts vs Ebac
+plot(nuts2012.s$TP, alpha.div2012A$simpsE, 
+     xlab = "", ylab = "", axes = F,
+     xlim = c(-2, 2.6), ylim = c(0, 0.06), las = 1,
+     pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+add.hull(model = mod2, pred.frame = pred.frame2)
+matlines(pred.frame2, predict(mod2, interval = "c", newdata=pred.frame2),
+         lty=c(2,3,3), lwd=c(4,2,2), col="black")
+points(nuts2012.s$TP, alpha.div2012A$simpsE,
+       pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+points(nuts2012.s$TN, alpha.div2012A$simpsE, 
+     pch = 21, col = "black", bg = "gray", cex = 2, lwd = 2)
+mtext("Nutrients", side = 1, line = 3, cex = 1.5)
+mtext("Species Evenness", side = 2, line = 3.5, cex = 1.5)
+legend("topright", legend = c("TP", "TN"), bty = "n", pch = c(22, 21),
+       col = "black", pt.bg = "gray", pt.lwd = 2, pt.cex = 1.5, bg = "white")
+axis(1, lwd = 2, labels = c("low", "medium", "high"), at = c(-2, 0, 2))
+axis(2, lwd = 2, labels = T, las = 1)
+axis(3, lwd = 2, tck = -0.02, labels = F)
+axis(4, lwd = 2, tck = -0.02, labels = F)
+axis(1, lwd = 2, tck = 0.02, labels = F)
+axis(2, lwd = 2, tck = 0.02, labels = F)
+axis(3, lwd = 2, tck = 0.02, labels = F)
+axis(4, lwd = 2, tck = 0.02, labels = F)
+box(lwd = 2)
+
+# Sdom vs Sbac
+plot(res.div$S.res, alpha.div2012A$S.rar, 
+     xlab = "", ylab = "", type = "n",
+     xlim = c(525, 572), ylim = c(0, 2200), las = 1,
+     pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+add.hull(model = mod3, pred.frame = pred.frame3)
+matlines(pred.frame3, predict(mod3, interval = "c", newdata=pred.frame3),
+         lty=c(2,3,3), lwd=c(4,2,2), col="black")
+points(res.div$S.res, alpha.div2012A$S.rar,
+       pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+mtext("DOM Richness", side = 1, line = 3, cex = 1.5)
+mtext("Species Richness", side = 2, line = 3.5, cex = 1.5)
+axis(1, lwd = 2, labels = F)
+axis(2, lwd = 2, labels = F)
+axis(3, lwd = 2, tck = -0.02, labels = F)
+axis(4, lwd = 2, tck = -0.02, labels = F)
+axis(1, lwd = 2, tck = 0.02, labels = F)
+axis(2, lwd = 2, tck = 0.02, labels = F)
+axis(3, lwd = 2, tck = 0.02, labels = F)
+axis(4, lwd = 2, tck = 0.02, labels = F)
+box(lwd = 2)
+
+# Sdom vs Ebac
+plot(res.div$S.res, alpha.div2012A$simpsE, 
+     xlab = "", ylab = "", type = "n",
+     xlim = c(525, 572), ylim = c(0, 0.06), las = 1,
+     pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+add.hull(model = mod4, pred.frame = pred.frame4)
+matlines(pred.frame4, predict(mod4, interval = "c", newdata=pred.frame4),
+         lty=c(2,3,3), lwd=c(4,2,2), col="black")
+points(res.div$S.res, alpha.div2012A$simpsE,
+       pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
 mtext("DOM Richness", side = 1, line = 3, cex = 1.5)
 mtext("Species Evenness", side = 2, line = 3.5, cex = 1.5)
 axis(1, lwd = 2, labels = F)
@@ -264,36 +418,20 @@ axis(2, lwd = 2, tck = 0.02, labels = F)
 axis(3, lwd = 2, tck = 0.02, labels = F)
 axis(4, lwd = 2, tck = 0.02, labels = F)
 box(lwd = 2)
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+par(opar)
 ```
 
-# Between Site Variation (Beta Diversity)
-## Nutrient Variation Between Sites
-```{r}
-# nuts[, 3:5]
-
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Diversity"}
+img <- readPNG("../figures/Figure1.png")
+grid.raster(img)
 ```
 
-## DOM Beta Diversity
-```{r}
-# Calculate Bray-Curtis 
-hmwf.bray.res <- vegdist(res, method = "bray")
 
-dis.mean <- mean(hmwf.bray.res)
 
-# Principal Coordinates Analysis
-pcoa.res <- cmdscale(hmwf.bray.res, eig = TRUE, k = 3) 
-explainvar1.res <- round(pcoa.res$eig[1] / sum(pcoa.res$eig), 3) * 100
-explainvar2.res <- round(pcoa.res$eig[2] / sum(pcoa.res$eig), 3) * 100
-explainvar3.res <- round(pcoa.res$eig[3] / sum(pcoa.res$eig), 3) * 100
-sum.eig.res <- sum(explainvar1.res, explainvar2.res, explainvar3.res)
-
-# DOM Scores
-dom.scores <- add.spec.scores(pcoa.res,resREL,method="cor.scores",multi=1,Rscale=F,scaling="1")
-dom.scores <- as.matrix(dom.scores$cproj)[,1:2]
-dom.scores <- dom.scores[abs(dom.scores[,1]) > 0.7 | abs(dom.scores[,2]) > 0.7, ]
-```
-
-## Figure 1: Organic Matter Ordination Figure
+## Supp Figure 1: Organic Matter Ordination Figure
 ```{r, results='hide'}
 design2 <- design[design$Molecule == "DNA" & design$Year == "2012", ]
 # Custom palette
@@ -302,7 +440,7 @@ lake.col <- rep(NA, length(unique(design2$Lake)))
 names(lake.col) <- unique(design2$Lake)
 lake.col <- as.numeric(factor(design2$Lake))
 
-png(filename="../figures/Figure1.png",
+png(filename="../figures/SuppFigure1.png",
     width = 900, height = 900, res = 96*2, bg = "white")
 par(opar)
 
@@ -332,7 +470,7 @@ plot(pcoa.res$points[ ,1], pcoa.res$points[ ,2],
   box(lwd = 2)
 
 # Add DOM Scores
-# arrows(0, 0, dom.scores[, 1] * 0.2, dom.scores[, 2] * 0.2, col = "red", length = 0.1)
+arrows(0, 0, dom.scores[, 1] * 0.2, dom.scores[, 2] * 0.2, col = "red", length = 0.1)
 text(dom.scores[, 1] * 0.2, dom.scores[, 2] * 0.2, rownames(dom.scores), col = "red", cex = 0.5)
     
 # Add Points & Labels
@@ -347,7 +485,7 @@ par(opar)
 ```
 
 ```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="PCoA Plot Resources"}
-img <- readPNG("../figures/Figure1.png")
+img <- readPNG("../figures/SuppFigure1.png")
 grid.raster(img)
 ```
 
@@ -365,10 +503,14 @@ explainvar2.rel <- round(pcoa.rel$eig[2] / sum(pcoa.rel$eig), 3) * 100
 explainvar3.rel <- round(pcoa.rel$eig[3] / sum(pcoa.rel$eig), 3) * 100
 sum.eig.rel <- sum(explainvar1.rel, explainvar2.rel, explainvar3.rel)
 
-# DOM Scores
+# OTU Scores
 otu.scores <- add.spec.scores(pcoa.rel,OTUsREL,method="cor.scores",multi=1,Rscale=F,scaling="1")
 otu.scores <- as.matrix(otu.scores$cproj)[,1:2]
 otu.scores <- otu.scores[abs(otu.scores[,1]) > 0.65 | abs(otu.scores[,2]) > 0.65, ]
+
+# Nutrient Scores
+
+# DOM Scores
 ```
 
 ## Figure 2: Bacterial Community Composition Ordination Figures (Rel Abundance)
@@ -396,7 +538,7 @@ if (design$Molecule[i] == "DNA"){
   }}
 
 png(filename="../figures/Figure2.png",
-    width = 1200, height = 900, res = 96*2, bg = "white")
+    width = 1300, height = 900, res = 96*2, bg = "white")
 par(opar)
 # Define Plot Parameters
 layout(matrix(c(1, 1, 1, 2), ncol = 4, byrow = T))
@@ -433,17 +575,25 @@ ordihull(cbind(pcoa.rel$points[ ,1], pcoa.rel$points[ ,2]),
          label=TRUE, cex=1, bty = 'n')
 
 text(0.35, -0.12, "Pony", col = 7, cex = 1)
-text(0.41, 0.28, "Lily", col = 5, cex = 1)
+text(0.48, 0.25, "Lily", col = 5, cex = 1)
+
+# Add Nutrient Scores
+arrows(0, 0, dom.scores[, 1] * 0.2, dom.scores[, 2] * 0.2, col = "red", length = 0.1)
+text(dom.scores[, 1] * 0.2, dom.scores[, 2] * 0.2, rownames(dom.scores), col = "red", cex = 0.5)
+
+# Add DOM Ordination Scores
+arrows(0, 0, dom.scores[, 1] * 0.2, dom.scores[, 2] * 0.2, col = "red", length = 0.1)
+text(dom.scores[, 1] * 0.2, dom.scores[, 2] * 0.2, rownames(dom.scores), col = "red", cex = 0.5)
   
 # Add Legends as Plot 2
 par(mar = c(4, 0, 1, 0) + 0.5)
 plot.new()
 legend("bottomleft", c("DNA", "RNA"), pch = c(16, 17), 
        col = "gray", bty = "n", pt.cex = 1.5, cex = 1.5, 
-       y.intersp = 1, inset = c(-0.1, 0, 0, 0.1))
+       y.intersp = 1, inset = c(0, 0, 0, 0.1))
 legend("topleft", levels(design$Lake), ncol = 1, pch = 16, col = 1:10, 
        bty = "n", pt.cex = 1.5, cex = 1.5, y.intersp = 1, 
-       inset = c(-0.1, 0, 0, 0.1))
+       inset = c(0, 0, 0, 0.1))
 
 
 
@@ -470,60 +620,9 @@ mantel.rtest(vegdist(OTUsREL2012R, "bray"), vegdist(resREL, "bray"))
 beta.dis <- betadisper(vegdist(OTUsREL, "bray"), design$Lake)
 permutest(beta.dis)
 
-per.bray.pa <- adonis(OTUsPA ~ design$Lake + design$Molecule, method = "bray")
 per.bray.rel <- adonis(OTUsREL ~ design$Lake + design$Molecule, method = "bray")
-per.bray.l <- adonis(OTUsREL.log ~ design$Lake + design$Molecule, method = "bray")
-per.uni.pa <- adonis(uni.frac.u ~ design$Lake + design$Molecule)
-per.uni.rel <- adonis(uni.frac.w ~ design$Lake + design$Molecule)
-per.uni.l <- adonis(uni.frac.wl ~ design$Lake + design$Molecule)
 ```
 
-## PERMANOVA Table
-```{r, results="asis"}
-per.models <- data.frame(matrix(NA, ncol = 4, nrow = 6))
-colnames(per.models) <- c("Lake R2", "Lake P", "Molecule R2", "Molecule P")
-row.names(per.models) <- c("Bray-Curtis -- PA", "Bray-Curtis -- REL", "Bray-Curtis -- Log",
-                    "UniFrac -- PA", "UniFrac -- REL", "UniFrac -- Log")
-per.models[1, ] <- c(per.bray.pa$aov.tab$R2[1], per.bray.pa$aov.tab$`Pr(>F)`[1],
-                     per.bray.pa$aov.tab$R2[2], per.bray.pa$aov.tab$`Pr(>F)`[2])
-per.models[2, ] <- c(per.bray.rel$aov.tab$R2[1], per.bray.rel$aov.tab$`Pr(>F)`[1],
-                     per.bray.rel$aov.tab$R2[2], per.bray.rel$aov.tab$`Pr(>F)`[2])
-per.models[3, ] <- c(per.bray.l$aov.tab$R2[1], per.bray.l$aov.tab$`Pr(>F)`[1],
-                     per.bray.l$aov.tab$R2[2], per.bray.l$aov.tab$`Pr(>F)`[2])
-per.models[4, ] <- c(per.uni.pa$aov.tab$R2[1], per.uni.pa$aov.tab$`Pr(>F)`[1],
-                     per.uni.pa$aov.tab$R2[2], per.uni.pa$aov.tab$`Pr(>F)`[2])
-per.models[5, ] <- c(per.uni.rel$aov.tab$R2[1], per.uni.rel$aov.tab$`Pr(>F)`[1],
-                     per.uni.rel$aov.tab$R2[2], per.uni.rel$aov.tab$`Pr(>F)`[2])
-per.models[6, ] <- c(per.uni.l$aov.tab$R2[1], per.uni.l$aov.tab$`Pr(>F)`[1],
-                     per.uni.l$aov.tab$R2[2], per.uni.l$aov.tab$`Pr(>F)`[2])
-
-per.models[, c(1,3)] <- round(per.models[, c(1,3)], 2)
-
-addtorow <- list()
-addtorow$pos <- list(0, 0)
-addtorow$command <- c("Model & \\multicolumn{2}{c}{Lake} & \\multicolumn{2}{c}{Molecule} \\\\\n", 
-                      " & \\multicolumn{1}{c}{R\\textsuperscript{2}} & 
-                          \\multicolumn{1}{c}{\\emph{P}} & 
-                          \\multicolumn{1}{c}{R\\textsuperscript{2}} & 
-                          \\multicolumn{1}{c}{\\emph{P}} \\\\\n")
-per.tab <- xtable(per.models, auto = TRUE)
-align(per.tab) <- c("l ","r ", "r ", "r ", "r ")
-print(per.tab, add.to.row = addtorow, include.colnames = FALSE, 
-      type= "latex", file="../tables/Table5.tex", 
-      hline.after = c(-1, -1, 0, nrow(per.tab)))
-print(per.tab, add.to.row = addtorow, include.colnames = FALSE, 
-      comment = FALSE, hline.after = c(-1, -1, 0, nrow(per.tab)))
-```
-
-
-# Nutrient Concentrations Explain BCC and DOM Composition
-
-## Resource Diversity (Evennes) and Nutrient Concentrations
-```{r}
-nuts2012 <- nuts[nuts$year == "2012", ]
-evenmod <- lm(res.div$res.simpsE ~ nuts2012$TN+nuts2012$TP)
-# Not using this because variation in resource alpha doesn't appear to be meaningful
-```
 
 
 ## Distance Based Redundancy Analysis
@@ -1217,10 +1316,21 @@ png(filename="../figures/Figure5C.png",
 par(opar)
 ConRes.matrix <- as.matrix(spear.ConRes5)
 rownames(ConRes.matrix) <- gsub("Otu000", "OTU",rownames(ConRes.matrix))
-heatmap.2(ConRes.matrix, col = jet.colors.W, distfun = dist,
-          dendrogram = "both", na.rm = F, na.color = "white", trace = "none",
-          density.info = "none", key.xlab = "Correlation", key.title = "",
-          cexCol = 0.4, cexRow = 0.4, main = "Species-Resource", lhei = c(2, 8))
+res.order <- order(colSums(ConRes.matrix <=  -0.5), decreasing = T)
+cons.order <- order(rowSums(ConRes.matrix <= -0.5), decreasing = T)
+order(rowSums(ConRes.matrix >= 0.5), decreasing = T)
+heatmap.2(ConRes.matrix[cons.order, res.order], col = jet.colors.W, Rowv = F, Colv = F, 
+          dendrogram = "none", na.rm = F, na.color = "white", trace = "none",
+          density.info = "none", key.xlab = "Relationship", key.title = "",
+          cexCol = 0.4, cexRow = 0.4, main = "", lhei = c(2, 8), margins = c(5, 5))
+mtext("Resource Availability", side = 3, line = 4, cex = 2, adj = 0.75)
+mtext("Available", side = 3, line = 2, cex = 1, adj = 0.2,  padj = 1)
+mtext("Restrictive", side = 3, line = 2, cex = 1, adj = 1, padj = 1)
+mtext("Consumer Strategy", side = 2, line = 1, cex = 2, adj = 0)
+mtext("Generalist", side = 2, line = -5, cex = 1, adj = 1, las = 1, at = 1)
+mtext("Specialist", side = 2, line = -5, cex = 1, adj = 1, las = 1, at = -0.25, xpd = T)
+arrows(x0 = 0.32, y0 = 1.075, x1 = 0.84, y1 = 1.075, length = 0.1, angle = 45, lwd = 3, xpd = T)
+arrows(x0 = 0.08, y0 = 0.95, x1 = 0.08, y1 = -0.2, length = 0.1, angle = 45, lwd = 3, xpd = T)
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices
 par(opar)
@@ -1230,6 +1340,64 @@ par(opar)
 img <- readPNG("../figures/Figure5C.png")
 grid.raster(img)
 ```
+
+```{r}
+test.mod <- lm(rowSums(ConRes.matrix != 0 ) ~ order(rowSums(ConRes.matrix <= -0.5 )))
+plot(rowSums(ConRes.matrix != 0 ) ~ order(rowSums(ConRes.matrix <= -0.5 )))
+
+breadth <- rowSums(ConRes.matrix <= -0.5 )
+avail <- colSums(ConRes.matrix <= -0.5)
+
+avail.use <- (((ConRes.matrix <= -0.5 ) * 1) %*% avail)
+avail.use.mean <- (((ConRes.matrix <= -0.5 ) * 1) %*% avail) / breadth
+
+median2 <- function(x){x2 = x[x != 0]; x3 = median(x2); return(x3)}
+min2 <- function(x){x2 = x[x != 0]; x3 = min(x2); return(x3)}
+quar2 <- function(x){x2 = x[x != 0]; x3 = quantile(x2, probs = 0.1); return(x3)}
+
+max.avail <- apply(t(t(ConRes.matrix <= -0.5) * avail), 1, max)
+med.avail <- apply(t(t(ConRes.matrix <= -0.5) * avail), 1, median2)
+min.avail <- apply(t(t(ConRes.matrix <= -0.5) * avail), 1, quar2)
+
+plot(avail.use ~ breadth, xlab = "Species Breadth", ylab = "Sum of Availability")
+par(mar = c(5, 5, 1, 1))
+plot(avail.use.mean ~ breadth, 
+     xlab = "Species Breadth", ylab = "Mean Availability", las = 1)
+mod <- lm(avail.use.mean ~ breadth)
+mod.s <- summary(mod)
+abline(mod, lty = 3, lwd = 3)
+legend("topright", legend = bquote(italic(p) == .(format(mod.s$coefficients[2, 4], digits = 3))), bty = "n")
+
+
+par(mar = c(5, 5, 1, 1))
+plot(min.avail ~ jitter(breadth), 
+     xlab = "Species Breadth", ylab = "Minimum Availability", las = 1)
+mod <- lm(min.avail ~ breadth)
+mod.s <- summary(mod)
+abline(mod, lty = 3, lwd = 3)
+legend("topright", legend = bquote(italic(p) == .(format(mod.s$coefficients[2, 4], digits = 3))), bty = "n")
+
+
+avail   <- (((ConRes.matrix <= -0.5 ) * 1) %*% colSums(ConRes.matrix <= -0.5)) / breadth
+
+bread.mod <- lm(avail ~ breadth)
+plot(avail ~ breadth)
+abline(bread.mod)
+
+breadth <- colSums(ConRes.matrix <= -0.5 )
+avail   <- ((t((ConRes.matrix <= -0.5 ) * 1)) %*% rowSums(ConRes.matrix <= -0.5)) / breadth
+
+
+avail.mod <- lm(avail ~ breadth)
+
+
+breadth <- rowSums(ConRes.matrix <= -0.5 )
+abund.mean <- colSums(OTUsREL.dom2012)
+plot(abund.mean ~ breadth)
+
+
+```
+
 
 ## Graph Analysis Plot
 ```{r, results='hide'}
