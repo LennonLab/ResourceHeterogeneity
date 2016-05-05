@@ -29,10 +29,12 @@ source("../bin/CommonFunctions.R")
 opar <- par(no.readonly = TRUE)  # Saves plot defaults
 
 # Load Required Packages
-require("xtable");require("png");require("grid");require("vegan")
-require("picante");require("phyloseq");require("car"); require("ade4")
-require("colorspace");require("bioDist");require("gplots")
-require("igraph");library("BiodiversityR")
+require("png"); require("grid");require("vegan"); require("igraph")
+library("BiodiversityR", quietly = T)
+#require("xtable");require("png");require("grid");require("vegan")
+#require("picante");require("phyloseq");require("car"); require("ade4")
+#require("colorspace");require("bioDist");require("gplots")
+#require("igraph");library("BiodiversityR")
 ```
 
 # Load Data & Minor Processing
@@ -118,7 +120,7 @@ OTUs.hmwf <- OTUs.in[rownames(design), ]
 
 # Remove OTUs with less than two occurences across all sites
 # OTUs <- OTUs.hmwf[, which(colSums(OTUs.hmwf) >= 2)]
-OTUs <- OTUs.hmwf[, colSums((OTUs.hmwf > 0) * 1)  >= 2 | colSums(OTUs.hmwf >= 10)]
+OTUs <- OTUs.hmwf[, colSums((OTUs.hmwf > 0) * 1)  >= 2 | colSums(OTUs.hmwf) >= 10]
 
 # Sequencing Coverage
 coverage <- rowSums(OTUs)
@@ -179,12 +181,8 @@ res.shan <- round(vegan::diversity(res, index = "shannon"), 2)
 res.div <- as.data.frame(cbind(S.res, res.simpsE, res.shan))
 
 # Summary Stats
-range(res.div$S.res)
-range(res.div$res.shan)
-range(res.div$res.simpsE)
-CV(res.div$S.res)
-CV(res.div$res.shan)
-CV(res.div$res.simpsE)
+range(res.div$S.res);range(res.div$res.shan);range(res.div$res.simpsE)
+CV(res.div$S.res);CV(res.div$res.shan);CV(res.div$res.simpsE)
 ```
 
 # DOM Compositional Diversity
@@ -230,13 +228,10 @@ alpha.div <- cbind(design, S.obs, simpsE, shan, S.rar)
 alpha.div <- alpha.div[order(alpha.div$Lake, alpha.div$Year, alpha.div$Molecule), ]
 
 # Summary Stats
-range(alpha.div$S.rar)
-CV(alpha.div$S.rar)
+range(alpha.div$S.rar);range(alpha.div$simpsE)
+CV(alpha.div$S.rar);CV(alpha.div$simpsE)
 CV(alpha.div$S.rar[alpha.div$Lake != "Pony" & alpha.div$Lake != "Lily"])
 range(alpha.div$S.rar[alpha.div$Lake != "Pony" & alpha.div$Lake != "Lily"])
-CV(alpha.div$simpsE)
-range(alpha.div$simpsE)
-CV(alpha.div$shan)
 ```
 
 ## Bacterial Compositional Diversity
@@ -246,8 +241,7 @@ hmwf.bray.REL <- vegdist(OTUsREL, method = "bray")
 
 dis.mean <- mean(hmwf.bray.REL)
 
-mol.mod <- adonis(hmwf.bray.REL ~ design$Molecule)
-mol.mod
+adonis(hmwf.bray.REL ~ design$Molecule)
 
 # Principal Coordinates Analysis 
 pcoa.rel <- cmdscale(hmwf.bray.REL, eig = TRUE, k = 3) 
@@ -260,7 +254,6 @@ sum.eig.rel <- sum(explainvar1.rel, explainvar2.rel, explainvar3.rel)
 otu.scores <- add.spec.scores(pcoa.rel,OTUsREL,method="cor.scores",multi=1,Rscale=F,scaling="1")
 otu.scores <- as.matrix(otu.scores$cproj)[,1:2]
 otu.scores <- otu.scores[abs(otu.scores[,1]) > 0.65 | abs(otu.scores[,2]) > 0.65, ]
-
 ```
 
 # Resource Heterogeneity and Community Diversity
@@ -333,7 +326,8 @@ matlines(pred.frame1, predict(mod1, interval = "c", newdata=pred.frame1),
          lty=c(2,3,3), lwd=c(4,2,2), col="black")
 points(dat1D$S.rar ~ dat1D$PCA,
        pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
-legend("bottomright", legend = bquote(italic(N.S.)), bty = "n", cex = 1)
+legend("bottomright", legend = bquote(italic(N.S.)), 
+       bty = "n", cex = 1, inset = 0.01)
 # mtext("Nutrients", side = 1, line = 3, cex = 1.5)
 mtext("Species Richness", side = 2, line = 4, cex = 1.5)
 axis(1, lwd = 2, labels = F, at = c(0, 2))
@@ -357,7 +351,8 @@ matlines(pred.frame1, predict(mod2, interval = "c", newdata=pred.frame1),
          lty=c(2,3,3), lwd=c(4,2,2), col="black")
 points(dat1D$simpsE ~ dat1D$PCA,
        pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
-legend("topright", legend = bquote(italic(N.S.)), bty = "n", cex = 1)
+legend("topright", legend = bquote(italic(N.S.)), 
+       bty = "n", cex = 1, inset = 0.01)
 mtext("Resource Concentration", side = 1, line = 3.5, cex = 1.5)
 mtext("Species Evenness", side = 2, line = 4, cex = 1.5)
 axis(1, lwd = 2, labels = c("low", "high"), at = c(0, 2))
@@ -381,7 +376,8 @@ matlines(pred.frame2, predict(mod3, interval = "c", newdata=pred.frame2),
          lty=c(2,3,3), lwd=c(4,2,2), col="black")
 points(dat2D$S.rar ~ dat2D$S.res,
        pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
-legend("topright", legend = bquote(italic(N.S.)), bty = "n", cex = 1)
+legend("topright", legend = bquote(italic(N.S.)), 
+       bty = "n", cex = 1, inset = 0.01)
 # mtext("DOM Richness", side = 1, line = 3, cex = 1.5)
 # mtext("Species Richness", side = 2, line = 3.5, cex = 1.5)
 axis(1, lwd = 2, labels = F, at = c(seq(540, 570, 10)))
@@ -404,7 +400,8 @@ matlines(pred.frame2, predict(mod4, interval = "c", newdata=pred.frame2),
          lty=c(2,3,3), lwd=c(4,2,2), col="black")
 points(dat2D$simpsE ~ dat2D$S.res,
        pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
-legend("bottomright", legend = bquote(italic(P) == .(mod4.p)), bty = "n", cex = 1)
+legend("bottomright", legend = bquote(italic(P) == .(mod4.p)), 
+       bty = "n", cex = 1, inset = 0.01)
 mtext("DOM Richness", side = 1, line = 3.5, cex = 1.5)
 # mtext("Species Evenness", side = 2, line = 3.5, cex = 1.5)
 axis(1, lwd = 2, labels = T, las = 1, at = c(seq(540, 570, 10)))
@@ -428,7 +425,7 @@ grid.raster(img)
 ```
 
 ## Compositional Relationships (dbRDA)
-```{r, results = 'hide'}
+```{r, results = 'hide', warning = FALSE}
 # Define Environmental Gradients
 ## Resource Concentration
 ## dat1D; dat1R; dat2D; dat2R
@@ -450,55 +447,55 @@ Bray.REL.D2012 <- vegdist(decostand(OTUsREL.D2012, "log"), "bray")
 Bray.REL.R2012 <- vegdist(decostand(OTUsREL.R2012, "log"), "bray")
 
 # Resource Concentration dbRDA 
-hmwf.bray.D.rda <- capscale(Bray.REL.D ~ dat1D$PCA, comm = OTUsREL.D, add = T)
-hmwf.bray.R.rda <- capscale(Bray.REL.R ~ dat1R$PCA, comm = OTUsREL.R, add = T)
-hmwf.bray.D.rda2012 <- capscale(Bray.REL.D2012 ~ dat2D$PCA, comm = OTUsREL.D2012, add = T)
-hmwf.bray.R.rda2012 <- capscale(Bray.REL.R2012 ~ dat2R$PCA, comm = OTUsREL.R2012, add = T)
+dbRDA.D <- capscale(Bray.REL.D ~ dat1D$PCA, comm = OTUsREL.D, add = T)
+dbRDA.R <- capscale(Bray.REL.R ~ dat1R$PCA, comm = OTUsREL.R, add = T)
+bdRDA.D2012 <- capscale(Bray.REL.D2012 ~ dat2D$PCA, comm = OTUsREL.D2012, add = T)
+dbRDA.R2012 <- capscale(Bray.REL.R2012 ~ dat2R$PCA, comm = OTUsREL.R2012, add = T)
 
-anova(hmwf.bray.D.rda2012, permutations = how(nperm=9999))
-RsquareAdj(hmwf.bray.D.rda2012)
-anova(hmwf.bray.R.rda2012, permutations = how(nperm=9999))
-RsquareAdj(hmwf.bray.R.rda2012)
+anova(bdRDA.D2012, permutations = how(nperm=9999))
+RsquareAdj(bdRDA.D2012)
+anova(dbRDA.R2012, permutations = how(nperm=9999))
+RsquareAdj(dbRDA.R2012)
 
 # With Pony and Lily Removed (DNA)
 dat2D.2 <- dat2D[dat2D$Lake != "Pony" & dat2D$Lake != "Lily", ]
 OTUsREL.D.2 <- OTUsREL[design$Molecule == "DNA" & design$Year == "2012" & 
                          design$Lake != "Pony" & design$Lake != "Lily", ]
 Bray.REL.D.2 <- vegdist(OTUsREL.D.2, "bray")
-hmwf.bray.D.2.rda <- capscale(Bray.REL.D.2 ~ dat2D.2$PCA, 
-                            comm = OTUsREL.D.2, add = T)
+dbRDA.D.2 <- capscale(Bray.REL.D.2 ~ dat2D.2$PCA, comm = OTUsREL.D.2, add = T)
 
-anova(hmwf.bray.D.2.rda, permutations = how(nperm=9999))
-RsquareAdj(hmwf.bray.D.2.rda)
+anova(dbRDA.D.2, permutations = how(nperm=9999))
+RsquareAdj(dbRDA.D.2)
 
 # DOM Diversity dbRDA
-hmwf.bray.D.DOM.rda <- capscale(Bray.REL.D2012 ~ pcoa.res$points, 
+Bray.RES <- vegdist(decostand(resREL, "log"), "bray")
+pcoa.RES <- cmdscale(Bray.RES, k = 3, eig = T)
+dbRDA.D.DOM <- capscale(Bray.REL.D2012 ~ pcoa.RES$points, 
                                 comm = OTUsREL.D2012, add = T)
-hmwf.bray.R.DOM.rda <- capscale(Bray.REL.R2012 ~ pcoa.res$points,
+dbRDA.R.DOM <- capscale(Bray.REL.R2012 ~ pcoa.RES$points,
                                 comm = OTUsREL.R2012, add = T)
 
-anova(hmwf.bray.D.DOM.rda, permutations = how(nperm=9999))
-RsquareAdj(hmwf.bray.D.DOM.rda)
-anova(hmwf.bray.R.DOM.rda, permutations = how(nperm=9999))
-RsquareAdj(hmwf.bray.R.DOM.rda)
+anova(dbRDA.D.DOM, permutations = how(nperm=9999))
+RsquareAdj(dbRDA.D.DOM)
+anova(dbRDA.R.DOM, permutations = how(nperm=9999))
+RsquareAdj(dbRDA.R.DOM)
 
 # With Pony and Lily Removed (DNA)
 ## Subset OTUs
 OTUsREL.D.2 <- OTUsREL[design$Molecule == "DNA" & design$Year == "2012" & 
-                         design$Lake != "Pony" & design$Lake != "Lily", ]
+                       design$Lake != "Pony" & design$Lake != "Lily", ]
 rownames(OTUsREL.D.2) <- gsub("2012_DNA", "", rownames(OTUsREL.D.2))
 Bray.REL.D2012.2 <- vegdist(decostand(OTUsREL.D.2, "log"), method = "bray")
 
 ## Subset Resources
 resREL2 <- resREL[rownames(resREL) != "Pony" & rownames(resREL) != "Lily", ]
-hmwf.bray.res2 <- vegdist(resREL2, method = "bray")
-pcoa.res2 <- cmdscale(hmwf.bray.res2, eig = TRUE, k = 2)
-# pcoa.res2 <- pcoa.res$points[rownames(pcoa.res$points) != "Pony" &
-#                              rownames(pcoa.res$points) != "Lily", ]
+Bray.RES2 <- vegdist(resREL2, method = "bray")
+pcoa.RES2 <- cmdscale(Bray.RES2, eig = TRUE, k = 2)
 
-hmwf.bray.D.DOM.rda2 <- capscale(Bray.REL.D2012.2 ~ pcoa.res2$points, add = T)
-anova(hmwf.bray.D.DOM.rda2, permutations = how(nperm=9999), model = "direct")
-RsquareAdj(hmwf.bray.D.DOM.rda2)
+## dbRDA Analysis
+dbRDA.D.DOM.2 <- capscale(Bray.REL.D2012.2 ~ pcoa.RES2$points, add = T)
+anova(dbRDA.D.DOM.2, permutations = how(nperm=9999), model = "direct")
+RsquareAdj(dbRDA.D.DOM.2)
 
 # Resource Concentration/Composition Correlations
 cor.test(dat2D$PCA, pcoa.res$points[,1])
@@ -509,9 +506,17 @@ cor.test(dat2D$PCA, pcoa.res$points[,3])
 # Bacterial PCoA Plot with Env Vectors
 ```{r, results='hide'}
 # PCoA of Total Community
-hmwf.pcoa.D <- cmdscale(Bray.REL.D2012, k = 2, eig = T)
-explainvar1 <- round(hmwf.pcoa.D$eig[1] / sum(hmwf.pcoa.D$eig), 3) * 100
-explainvar2 <- round(hmwf.pcoa.D$eig[2] / sum(hmwf.pcoa.D$eig), 3) * 100
+bray.BAC <- vegdist(decostand(OTUsREL, "log"), "bray")
+pcoa.BAC <- cmdscale(Bray.REL.D2012, k = 2, eig = T)
+explainvar1 <- round(pcoa.BAC$eig[1] / sum(pcoa.BAC$eig), 3) * 100
+explainvar2 <- round(pcoa.BAC$eig[2] / sum(pcoa.BAC$eig), 3) * 100
+
+# PCoA of Resoruces
+bray.RES <- vegdist(decostand(resREL, "log"), "bray")
+pcoa.RES <- cmdscale(bray.RES, k = 3, eig = T)
+
+# Resource Concentrations
+cons.RES <- dat2D$PCA
 
 # Initial Plot as PNG
 png(filename="../figures/Figure2.png",
@@ -522,7 +527,7 @@ par(opar)
 par(mar = c(4, 5, 1, 1) + 0.5)
 
 # Initiate Plot 1
-plot(hmwf.pcoa.D$points[ ,1], hmwf.pcoa.D$points[ ,2], 
+plot(pcoa.BAC$points[ ,1], pcoa.BAC$points[ ,2], 
      ylim = c(-0.4, 0.4), xlim = c(-0.4, 0.6), 
      xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
      ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
@@ -543,26 +548,26 @@ abline(h = 0, v = 0, lty = 3)
 box(lwd = 2)
   
 # Add Points & Labels
-points(hmwf.pcoa.D$points[ ,1], hmwf.pcoa.D$points[ ,2], pch = 22, 
+points(pcoa.BAC$points[ ,1], pcoa.BAC$points[ ,2], pch = 22, 
        cex = 2, bg = "gray", lwd = 2)
 
 # Resource Concentration Vector
-res.con <- envfit(Bray.REL.D2012, dat2D$PCA)
+res.con <- envfit(pcoa.BAC, cons.RES)
 con.arrows <- res.con[[1]]$arrows * 0.5
 arrows(0, 0, con.arrows[, 1], con.arrows[, 2], col = "red", length = 0.1, lwd = 2)
-text(con.arrows[, 1] * 1.1, con.arrows[, 2] * 1, "Conc.", col = "red", cex = 1, pos = 1)
+text(con.arrows[, 1] * 1.2, con.arrows[, 2] * 1.2, "Conc.", col = "red", cex = 1)
 
 # DOM Composition Vectors
-res.com <- envfit(Bray.REL.D2012, pcoa.res$points[,1:2])
+res.com <- envfit(pcoa.BAC, pcoa.RES$points[,1:2])
 com.arrows <- res.com[[1]]$arrows * 0.3
 arrows(0, 0, com.arrows[1, 1], com.arrows[1, 2], col = "red", length = 0.1, lwd = 2)
 arrows(0, 0, com.arrows[2, 1], com.arrows[2, 2], col = "red", length = 0.1, lwd = 2)
-text(com.arrows[1, 1] * 1.2, com.arrows[1, 2] * 1.2, "DOM 1", col = "red", cex = 1)
+text(com.arrows[1, 1] * 1.15, com.arrows[1, 2] * 1.15, "DOM 1", col = "red", cex = 1)
 text(com.arrows[2, 1] * 1, com.arrows[2, 2] * 1.15, "DOM 2", col = "red", 
      cex = 1, pos = 1)
 
-text(0.45, -0.035, "Pony", col = "black", cex = 0.8)
-text(0.58, 0.13, "Lily", col = "black", cex = 0.8)
+text(0.45, -0.1, "Pony", col = "black", cex = 0.8)
+text(0.55, 0.15, "Lily", col = "black", cex = 0.8)
 
 par(opar)
 dev.off() # this writes plot to folder
@@ -574,6 +579,6 @@ img <- readPNG("../figures/Figure2.png")
 grid.raster(img)
 ```
 
-
+# Consumer Resource Specialization
 
 
