@@ -30,7 +30,8 @@ opar <- par(no.readonly = TRUE)  # Saves plot defaults
 
 # Load Required Packages
 require("png"); require("grid");require("vegan"); require("igraph")
-library("BiodiversityR", quietly = T)
+library("BiodiversityR", quietly = T); 
+require("picante");require("bioDist");require("gplots")
 #require("xtable");require("png");require("grid");require("vegan")
 #require("picante");require("phyloseq");require("car"); require("ade4")
 #require("colorspace");require("bioDist");require("gplots")
@@ -580,5 +581,258 @@ grid.raster(img)
 ```
 
 # Consumer Resource Specialization
+```{r}
+# Subset OTUs for most dominant
+OTUsREL.dom <- OTUsREL[,which(colSums(as.matrix(OTUsREL)) > 0.05)]
+OTUsREL.dom2012 <- OTUsREL.dom[grep("2012_RNA", rownames(OTUsREL.dom)),]
+OTUsREL.dom2012 <- OTUsREL.dom2012[,order(colSums(as.matrix(OTUsREL.dom2012)), 
+                                          decreasing = T)[1:100]]
 
+# Subset Resources for most dominant
+resREL.dom <- resREL[,which(colSums(as.matrix(resREL)) > 0.022)]
+resREL.dom <- resREL.dom[,order(colSums(as.matrix(resREL.dom)), decreasing = T)[1:100]]
+
+# Subset Resoruce for most influential
+resREL.inf <- add.spec.scores(pcoa.RES,resREL,method="cor.scores",multi=1,Rscale=F,scaling="1")
+resREL.inf <- as.matrix(resREL.inf$cproj)[,1:3]
+resREL.inf <- resREL.inf[abs(resREL.inf[,1]) > 0.7 | abs(resREL.inf[,2]) > 0.7 |
+                         abs(resREL.inf[,3]) > 0.7, ]
+
+# Mege OTUs and Resources Matrices
+ConRes1 <- cbind(as.matrix(OTUsREL.dom2012), as.matrix(resREL.dom))
+ConRes2 <- cbind(as.matrix(resREL.dom), as.matrix(OTUsREL.dom2012))
+ConRes <- rbind(ConRes1, ConRes2)
+
+# Calculate 1 - Spearman Correlation Coefficients: Spearman Distance
+spear.ConRes <- spearman.dist(t(as.matrix(ConRes)), abs = FALSE, diag = T, upper = T)
+
+# Isolate Relavent Interactions
+spear.ConRes2 <- spear.ConRes - 1
+spear.ConRes3 <- spear.ConRes2
+spear.ConRes3[which(spear.ConRes2 < 0.5 & spear.ConRes2 > -0.5)] <- 0
+spear.ConRes4 <- as.matrix(spear.ConRes3)[1:100, 101:200]
+
+# Summary
+str(spear.ConRes4)
+sum(spear.ConRes4 < -0.5)
+sum(spear.ConRes4 > 0.5)
+pos.cor.ConRes <- which(spear.ConRes4 > 0.5)
+neg.cor.ConRes <- which(spear.ConRes4 < -0.5)
+
+# Significance Test
+sig.test.neg <- list()
+sig.test.pos <- list()
+for (i in 1:1000) {
+  # Two IndepSwap Runs
+  testA <- randomizeMatrix(as.matrix(OTUsREL.dom2012), null.model = "independentswap")
+  testB <- randomizeMatrix(as.matrix(resREL.dom), null.model = "independentswap")
+  # Mege OTUs and Resources
+  ConRes1.test <- cbind(as.matrix(testA), as.matrix(testB))
+  ConRes2.test <- cbind(as.matrix(testB), as.matrix(testA))
+  ConRes.test <- rbind(ConRes1.test, ConRes2.test)
+  # Co-Occurence Analysis
+  spear.ConRes.test <- spearman.dist(t(ConRes.test), abs = FALSE)
+  spear.ConRes2.test <- spear.ConRes.test - 1
+  spear.ConRes3.test <- spear.ConRes2.test
+  spear.ConRes3.test[which(spear.ConRes2.test < 0.5 & spear.ConRes2.test > -0.5)] <- 0
+  spear.ConRes4.test <- as.matrix(spear.ConRes3.test)[1:100, 101:200]
+  which(spear.ConRes4.test < -0.5)
+  which(spear.ConRes4.test > 0.5)
+  sig.test.neg[[i]] <- which(spear.ConRes4.test < -0.5)
+  sig.test.pos[[i]] <- which(spear.ConRes4.test > 0.5)
+}
+false.neg <- which((table(unlist(sig.test.neg)) / 1000) > 0.1)
+false.pos <- which((table(unlist(sig.test.pos)) / 1000) > 0.1)
+weak.neg <- which((table(unlist(sig.test.neg)) / 1000) > 0.05 & 
+                    (table(unlist(sig.test.neg)) / 1000) < 0.1)
+weak.pos <- which((table(unlist(sig.test.pos)) / 1000) > 0.05 & 
+                    (table(unlist(sig.test.pos)) / 1000) < 0.1)
+
+length(setdiff(neg.cor.ConRes, c(false.neg, weak.neg)))
+length(setdiff(pos.cor.ConRes, c(false.pos, weak.neg)))
+sum(length(setdiff(neg.cor.ConRes, c(false.neg, weak.neg))), 
+    length(setdiff(pos.cor.ConRes, c(false.pos, weak.neg)))) / 10000
+
+# Remove Non Significant Interactions and Define Weak Interactions
+spear.ConRes5 <- spear.ConRes4
+bad.ints.neg <- sort(false.neg)
+bad.ints.pos <- sort(false.pos)
+for (i in 1:length(bad.ints.neg)){
+  if (spear.ConRes5[bad.ints.neg[i]] < 0){
+    spear.ConRes5[bad.ints.neg[i]] <- 0
+  } else {}
+}
+for (i in 1:length(bad.ints.pos)){
+  if (spear.ConRes5[bad.ints.pos[i]] > 0){
+    spear.ConRes5[bad.ints.pos[i]] <- 0
+  } else {}
+}
+weak.ints.neg <- sort(weak.neg)
+weak.ints.pos <- sort(weak.pos)
+for (i in 1:length(weak.ints.neg)){
+  if (spear.ConRes5[weak.ints.neg[i]] < 0){
+    spear.ConRes5[weak.ints.neg[i]] <- -0.4
+  } else {}
+}
+for (i in 1:length(weak.ints.pos)){
+  if (spear.ConRes5[weak.ints.pos[i]] > 0){
+    spear.ConRes5[weak.ints.pos[i]] <- 0.4
+  } else {}
+}
+
+# Custome Color Palette
+jet.colors <- colorRampPalette(c("#00007F", "blue", "#007FFF", "cyan", 
+                                 "#7FFF7F", "yellow", "#FF7F00", "red", 
+                                 "#7F0000"))
+jet.colors.W <- colorRampPalette(c("#00007F", "blue", "#007FFF", "cyan", 
+                                   "white", "white", "white", "white",
+                                   "yellow", "#FF7F00", "red", "#7F0000"))
+```
+
+# Interaction Plot
+
+```{r, results='hide'}
+png(filename="../figures/Figure3.png",
+    width = 1800, height = 1800, res = 96*2, bg = "white")
+par(opar)
+ConRes.matrix <- as.matrix(spear.ConRes5)
+rownames(ConRes.matrix) <- gsub("Otu000", "OTU",rownames(ConRes.matrix))
+res.order <- order(colSums(ConRes.matrix <=  -0.5), decreasing = T)
+cons.order <- order(rowSums(ConRes.matrix <= -0.5), decreasing = T)
+order(rowSums(ConRes.matrix >= 0.5), decreasing = T)
+heatmap.2(ConRes.matrix[cons.order, res.order], col = jet.colors.W, Rowv = F, Colv = F,
+          dendrogram = "none", na.rm = F, na.color = "white", trace = "none",
+          density.info = "none", key.xlab = "Interaction", key.title = "",
+          cexCol = 0.4, cexRow = 0.4, main = "", lhei = c(2, 8), margins = c(5, 5))
+mtext("Resource Availability", side = 3, line = 4, cex = 2, adj = 0.75)
+mtext("Available", side = 3, line = 2, cex = 1, adj = 0.2,  padj = 1)
+mtext("Restrictive", side = 3, line = 2, cex = 1, adj = 1, padj = 1)
+mtext("Consumer Strategy", side = 2, line = 1, cex = 2, adj = 0)
+mtext("Generalist", side = 2, line = -5, cex = 1, adj = 1, las = 1, at = 1)
+mtext("Specialist", side = 2, line = -5, cex = 1, adj = 1, las = 1, at = -0.25, xpd = T)
+arrows(x0 = 0.32, y0 = 1.075, x1 = 0.84, y1 = 1.075, length = 0.1, angle = 45, lwd = 3, xpd = T)
+arrows(x0 = 0.08, y0 = 0.95, x1 = 0.08, y1 = -0.2, length = 0.1, angle = 45, lwd = 3, xpd = T)
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+par(opar)
+```
+
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
+img <- readPNG("../figures/Figure3.png")
+grid.raster(img)
+```
+
+# Generalist:Specialist Ratio
+```{r}
+str(ConRes.matrix)
+avail.neg <- colSums(ConRes.matrix < -0.4)
+gener.neg <- rowSums(ConRes.matrix < -0.4)
+avail.pos <- colSums(ConRes.matrix > 0.4)
+gener.pos <- rowSums(ConRes.matrix > 0.4)
+
+plot(jitter(avail.neg), jitter(gener.neg))
+plot(jitter(avail.pos), jitter(gener.pos))
+plot(jitter(avail.neg), jitter(gener.pos))
+plot(jitter(avail.pos), jitter(gener.neg))
+plot(jitter(avail.neg), jitter(avail.pos))
+plot(jitter(gener.neg), jitter(gener.pos))
+
+specialists <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.4) <= 2]
+generalists <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.4) > 2]
+
+abundancesD <- OTUsREL.dom[design$Molecule == "DNA" & design$Year == "2012", ]
+colnames(abundancesD) <- gsub("Otu000", "OTU",colnames(abundancesD))
+rownames(abundancesD) <- gsub("2012_DNA", "", rownames(abundancesD))
+
+abundancesR <- OTUsREL.dom[design$Molecule == "RNA" & design$Year == "2012", ]
+colnames(abundancesR) <- gsub("Otu000", "OTU",colnames(abundancesR))
+rownames(abundancesR) <- gsub("2012_RNA", "", rownames(abundancesR))
+
+spec.matrix <- matrix(NA, nrow = 10, ncol = 4)
+colnames(spec.matrix) <- c("Total.Rel.Gen", "Active.Rel.Gen", 
+                           "Total.Rel.Spe", "Active.Rel.Spe")
+rownames(spec.matrix) <- rownames(abundancesD)
+
+for (i in 1:(dim(spec.matrix)[1])){
+  temp.gensT <- abundancesD[i, colnames(abundancesD) %in% generalists]
+  temp.gensA <- abundancesR[i, colnames(abundancesR) %in% generalists]
+  temp.specT <- abundancesD[i, colnames(abundancesD) %in% specialists]
+  temp.specA <- abundancesR[i, colnames(abundancesR) %in% specialists]
+  spec.matrix[i,1] <- round(sum(temp.gensT), 3)
+  spec.matrix[i,2] <- round(sum(temp.gensA), 3)
+  spec.matrix[i,3] <- round(sum(temp.specT), 3)
+  spec.matrix[i,4] <- round(sum(temp.specA), 3)
+}
+
+```
+
+
+# Generalist:Specialists Ratio Plot
+```{r}
+png(filename="../figures/Figure4.png",
+    width = 1600, height =1000, res = 96*2)
+par(opar)
+layout(matrix(c(1,2), 2, 1), heights = c(6,1))
+par(mar = c(3, 5.5, 1, 1) + 0.5)
+
+labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
+         "Second\nPine","Upper\nPine")
+
+# Initiate Plot
+plot(spec.matrix[,1], type = "n", 
+     xlim = c(0.75, 10.25), ylim = c(0, 0.9),
+     xaxt="n", yaxt="n", xlab = "", ylab = "")
+points(seq(0.9, 9.9, 1), spec.matrix[,1], pch = 22, cex = 2,
+       bg = "cornflowerblue", lwd = 2)
+points(seq(1.1, 10.1, 1), spec.matrix[,2], pch = 24, cex = 2,
+       bg = "cornflowerblue", lwd = 2)
+points(seq(0.9, 9.9, 1), spec.matrix[,3], pch = 22, cex = 2,
+       bg = "wheat3", lwd = 2)
+points(seq(1.1, 10.1, 1), spec.matrix[,4], pch = 24, cex = 2,
+       bg = "wheat3", lwd = 2)
+
+abline(h = 0.5, lwd = 2, lty = 3)
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = 1:10)
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = 1:10)
+axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1.2, las = 1)
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = 1:10)
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = 1:10)
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1)
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
+
+mtext(side = 1, text = labs, line = 1, at = seq(1:10), padj = 0.5, cex = 0.8)
+mtext(side = 2, "Proportion of Community", line = 3.5, cex = 1.5)
+
+box(lwd = 2)
+
+# Add Legend
+par(mar = c(0, 0, 0, 0) )
+plot.new()
+
+legend(0, 1, legend = c("Generalists (Total)", "Generalists (Active)",
+                            "Specialists (Total)", "Specialists (Active)"),
+       pch = c(22, 24, 22, 24), pt.lwd = 2,
+       pt.bg = c("cornflowerblue", "cornflowerblue", "wheat3", "wheat3"),
+       bty = "n", pt.cex = 1, cex = 0.85, ncol = 4, y.intersp = 1.5)
+
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices 
+par(opar)
+
+
+```
+
+
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
+img <- readPNG("../figures/Figure4.png")
+grid.raster(img)
+```
+
+# Consumer Resource Feedbacks
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
+img <- readPNG("../figures/Figure3.png")
+grid.raster(img)
+```
 
