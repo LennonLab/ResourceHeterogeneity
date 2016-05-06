@@ -29,10 +29,11 @@ source("../bin/CommonFunctions.R")
 opar <- par(no.readonly = TRUE)  # Saves plot defaults
 
 # Load Required Packages
-require("xtable");require("png");require("grid");require("vegan")
-require("picante");require("phyloseq");require("car")
-require("colorspace");require("bioDist");require("gplots")
-require("igraph");library("BiodiversityR")
+require("png"); require("grid");require("vegan"); require("igraph")
+require("picante");require("bioDist");require("gplots")
+#require("xtable");require("phyloseq");require("car"); require("ade4");require("bioDist")
+require("colorspace")
+
 ```
 
 # Load Data & Minor Processing
@@ -118,7 +119,7 @@ OTUs.hmwf <- OTUs.in[rownames(design), ]
 
 # Remove OTUs with less than two occurences across all sites
 # OTUs <- OTUs.hmwf[, which(colSums(OTUs.hmwf) >= 2)]
-OTUs <- OTUs.hmwf[, colSums((OTUs.hmwf > 0) * 1)  >= 2 | colSums(OTUs.hmwf >= 10)]
+OTUs <- OTUs.hmwf[, colSums((OTUs.hmwf > 0) * 1)  >= 2 | colSums(OTUs.hmwf) >= 10]
 
 # Sequencing Coverage
 coverage <- rowSums(OTUs)
@@ -140,8 +141,7 @@ for(i in 1:dim(OTUs)[1]){
 OTUsREL.log <- decostand(OTUs, method="log")
 ```
 
-# Site Based Variation
-## Statistical Description of Nutrients
+# Statistical Description of Resources
 ```{r}
 range(nuts$DOC);range(nuts$TN);range(nuts$TP)
 
@@ -149,26 +149,23 @@ CV(nuts$DOC)
 CV(nuts$TN)
 CV(nuts$TP)
 
-plot(log10(nuts[,3:5]))
 cor.test(nuts$DOC, nuts$TN)
 cor.test(nuts$TN, nuts$TP)
 cor.test(nuts$DOC, nuts$TP)
 
-a.tn <- Anova(lm(TN ~ as.factor(Site) + as.factor(Year), data = nuts))
-a.doc <- Anova(lm(DOC ~ as.factor(Site) + as.factor(Year), data = nuts))
-a.tp <- Anova(lm(TP ~ as.factor(Site) + as.factor(Year), data = nuts))
 
-t.test(nuts$DOC[nuts$Year == "2011"], 
-       nuts$DOC[nuts$Year == "2012"], paired = T)
-t.test(nuts$TN[nuts$Year == "2011"], 
-       nuts$TN[nuts$Year == "2012"], paired = T)
-t.test(nuts$TP[nuts$Year == "2011"], 
-       nuts$TP[nuts$Year == "2012"], paired = T)
+# Principal Components Axis
+nuts.pca <- princomp(nuts[, 4:5])
+summary(nuts.pca)
+nuts.axis <- nuts.pca$scores[,1]
 
-nuts$TP[nuts$Year == "2011"] - nuts$TP[nuts$Year == "2012"]
+PCA.res <- princomp(cbind(scale(nuts$DOC), scale(nuts$TN), scale(nuts$TP)))
+summary(PCA.res)
+     
+PCA.res1 <- scale(PCA.res$scores[,1])
 ```
 
-## Statistical Description of DOM
+# Statistical Description of DOM Structural Diversity 
 ```{r}
 # Observed Richness
 S.res <- rowSums((res > 0) * 1)
@@ -183,15 +180,36 @@ res.shan <- round(vegan::diversity(res, index = "shannon"), 2)
 res.div <- as.data.frame(cbind(S.res, res.simpsE, res.shan))
 
 # Summary Stats
-range(res.div$S.res)
-range(res.div$res.shan)
-range(res.div$res.simpsE)
-CV(res.div$S.res)
-CV(res.div$res.shan)
-CV(res.div$res.simpsE)
+range(res.div$S.res);range(res.div$res.shan);range(res.div$res.simpsE)
+CV(res.div$S.res);CV(res.div$res.shan);CV(res.div$res.simpsE)
 ```
 
-## Statistical Description of BCC
+# DOM Compositional Diversity
+```{r}
+# Calculate Bray-Curtis 
+hmwf.bray.res <- vegdist(resREL, method = "bray")
+# hmwf.bray.res <- vegdist(resREL.log, method = "bray")
+
+dis.mean <- mean(hmwf.bray.res)
+
+# Principal Coordinates Analysis
+pcoa.res <- cmdscale(hmwf.bray.res, eig = TRUE, k = 3) 
+explainvar1.res <- round(pcoa.res$eig[1] / sum(pcoa.res$eig), 3) * 100
+explainvar2.res <- round(pcoa.res$eig[2] / sum(pcoa.res$eig), 3) * 100
+explainvar3.res <- round(pcoa.res$eig[3] / sum(pcoa.res$eig), 3) * 100
+sum.eig.res <- sum(explainvar1.res, explainvar2.res, explainvar3.res)
+
+# DOM Scores
+dom.scores <- t(cor(pcoa.res$points,res))
+dom.scores <- as.matrix(dom.scores)[,1:2]
+dom.scores <- dom.scores[abs(dom.scores[,1]) > 0.7 | abs(dom.scores[,2]) > 0.7, ]
+
+write.table(round(dom.scores, 3), file = "../data/HMWF_DOM.txt", sep = "\t", quote = F,
+            col.names = NA)
+```
+
+
+# Statistical Description of Bacterial Structural Diversity
 ```{r}
 # Observed Richness
 S.obs <- rowSums((OTUs > 0) * 1)
@@ -209,154 +227,20 @@ alpha.div <- cbind(design, S.obs, simpsE, shan, S.rar)
 alpha.div <- alpha.div[order(alpha.div$Lake, alpha.div$Year, alpha.div$Molecule), ]
 
 # Summary Stats
-range(alpha.div$S.rar)
-CV(alpha.div$S.rar)
+range(alpha.div$S.rar);range(alpha.div$simpsE)
+CV(alpha.div$S.rar);CV(alpha.div$simpsE)
 CV(alpha.div$S.rar[alpha.div$Lake != "Pony" & alpha.div$Lake != "Lily"])
-CV(alpha.div$simpsE)
-CV(alpha.div$shan)
-
-div.mod1 <- Anova(lm(S.rar ~ Lake + Molecule, 
-                     data = alpha.div[alpha.div$Lake != "Pony" & 
-                                      alpha.div$Lake != "Lily", ]))
-
-div.mod2 <- Anova(lm(shan ~ Lake + Molecule, data = alpha.div[alpha.div$Lake != 
-                                     "Pony" & alpha.div$Lake != "Lily", ]))
-
-div.mod3 <- Anova(lm(simpsE ~ Lake + Molecule, data = alpha.div[alpha.div$Lake != 
-                                     "Pony" & alpha.div$Lake != "Lily", ]))
+range(alpha.div$S.rar[alpha.div$Lake != "Pony" & alpha.div$Lake != "Lily"])
 ```
 
-## Patterns Between Nutrients, DOM, and BCC
-```{r}
-# Nutrients and DOM
-cor(res.div, log10(nuts[nuts$Year == "2012", 3:5]))
-cor(res.div[rownames(res.div) != "Pony", ], 
-    log10(nuts[nuts$Year == "2012" & nuts$Site != "Pony", 3:5]))
-cor.test(res.div$S.res[rownames(res.div) != "Pony"],  #Dropped Pony
-         log10(nuts$DOC[nuts$Year == "2012" & nuts$Site != "Pony"]))
-
-# Nutrients and BCC
-cor(alpha.div[alpha.div$Molecule == "DNA", 5:7], log10(nuts[, 3:5]))
-cor(alpha.div[alpha.div$Molecule == "RNA", 5:7], log10(nuts[, 3:5]))
-
-# DOM and BCC
-cor(alpha.div[alpha.div$Molecule == "DNA" & alpha.div$Year == "2012", 5:7], res.div)
-cor(alpha.div[alpha.div$Molecule == "RNA" & alpha.div$Year == "2012", 5:7], res.div)
-cor.test(alpha.div$simpsE[alpha.div$Molecule == "RNA" & alpha.div$Year == "2012"], res.div$S.res)
-```
-
-## Only Significant Correlation is S.Even and DOM.Rich
-```{r, results = "hide"}
-par(mar = c(5, 6, 1, 1) + 0.1)
-plot(res.div$S.res, alpha.div$simpsE[alpha.div$Molecule == "RNA" & 
-     alpha.div$Year == "2012"], 
-     xlab = "", ylab = "",
-     xlim = c(525, 575), ylim = c(0, 0.05), las = 1,
-     pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
-mtext("DOM Richness", side = 1, line = 3, cex = 1.5)
-mtext("Species Evenness", side = 2, line = 3.5, cex = 1.5)
-axis(1, lwd = 2, labels = F)
-axis(2, lwd = 2, labels = F)
-axis(3, lwd = 2, tck = -0.02, labels = F)
-axis(4, lwd = 2, tck = -0.02, labels = F)
-axis(1, lwd = 2, tck = 0.02, labels = F)
-axis(2, lwd = 2, tck = 0.02, labels = F)
-axis(3, lwd = 2, tck = 0.02, labels = F)
-axis(4, lwd = 2, tck = 0.02, labels = F)
-box(lwd = 2)
-```
-
-# Between Site Variation (Beta Diversity)
-## Nutrient Variation Between Sites
-```{r}
-# nuts[, 3:5]
-
-```
-
-## DOM Beta Diversity
-```{r}
-# Calculate Bray-Curtis 
-hmwf.bray.res <- vegdist(res, method = "bray")
-
-dis.mean <- mean(hmwf.bray.res)
-
-# Principal Coordinates Analysis
-pcoa.res <- cmdscale(hmwf.bray.res, eig = TRUE, k = 3) 
-explainvar1.res <- round(pcoa.res$eig[1] / sum(pcoa.res$eig), 3) * 100
-explainvar2.res <- round(pcoa.res$eig[2] / sum(pcoa.res$eig), 3) * 100
-explainvar3.res <- round(pcoa.res$eig[3] / sum(pcoa.res$eig), 3) * 100
-sum.eig.res <- sum(explainvar1.res, explainvar2.res, explainvar3.res)
-
-# DOM Scores
-dom.scores <- add.spec.scores(pcoa.res,resREL,method="cor.scores",multi=1,Rscale=F,scaling="1")
-dom.scores <- as.matrix(dom.scores$cproj)[,1:2]
-dom.scores <- dom.scores[abs(dom.scores[,1]) > 0.7 | abs(dom.scores[,2]) > 0.7, ]
-```
-
-## Figure 1: Organic Matter Ordination Figure
-```{r, results='hide'}
-design2 <- design[design$Molecule == "DNA" & design$Year == "2012", ]
-# Custom palette
-palette(rainbow_hcl(10, c = 80, l = 60))
-lake.col <- rep(NA, length(unique(design2$Lake)))
-names(lake.col) <- unique(design2$Lake)
-lake.col <- as.numeric(factor(design2$Lake))
-
-png(filename="../figures/Figure1.png",
-    width = 900, height = 900, res = 96*2, bg = "white")
-par(opar)
-
-# Define Plot Parameters
-layout(matrix(1))
-par(mar = c(5, 5, 1, 1) + 0.5)
-
-plot(pcoa.res$points[ ,1], pcoa.res$points[ ,2], 
-     ylim = c(-0.25, 0.3), xlim = c(-0.25, 0.3), 
-     xlab = paste("PCoA 1 (", explainvar1.res, "%)", sep = ""),
-     ylab = paste("PCoA 2 (", explainvar2.res, "%)", sep = ""),
-     #xlab = "", ylab = "", 
-     xaxt = "n", yaxt = "n",
-     pch = 17, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1, 
-     axes = FALSE)
-
-  # Add Axes
-  axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1, las = 1)
-  axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1, las = 1)
-  axis(side = 3, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
-  axis(side = 4, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
-  axis(side = 1, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.02)
-  axis(side = 2, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.02)
-  axis(side = 3, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.02)
-  axis(side = 4, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.02)
-  abline(h = 0, v = 0, lty = 3)
-  box(lwd = 2)
-
-# Add DOM Scores
-# arrows(0, 0, dom.scores[, 1] * 0.2, dom.scores[, 2] * 0.2, col = "red", length = 0.1)
-text(dom.scores[, 1] * 0.2, dom.scores[, 2] * 0.2, rownames(dom.scores), col = "red", cex = 0.5)
-    
-# Add Points & Labels
-points(pcoa.res$points[ ,1], pcoa.res$points[ ,2], pch = 15, 
-       cex = 4, bg = "gray", col = lake.col)
-text(pcoa.res$points[ ,1], pcoa.res$points[ ,2], labels = row.names(pcoa.res$points))
-
-
-dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices
-par(opar)
-```
-
-```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="PCoA Plot Resources"}
-img <- readPNG("../figures/Figure1.png")
-grid.raster(img)
-```
-
-## BCC Beta Diversity
+## Bacterial Compositional Diversity
 ```{r}
 # Calculate Bray-Curtis 
 hmwf.bray.REL <- vegdist(OTUsREL, method = "bray")
 
 dis.mean <- mean(hmwf.bray.REL)
+
+adonis(hmwf.bray.REL ~ design$Molecule)
 
 # Principal Coordinates Analysis 
 pcoa.rel <- cmdscale(hmwf.bray.REL, eig = TRUE, k = 3) 
@@ -365,50 +249,288 @@ explainvar2.rel <- round(pcoa.rel$eig[2] / sum(pcoa.rel$eig), 3) * 100
 explainvar3.rel <- round(pcoa.rel$eig[3] / sum(pcoa.rel$eig), 3) * 100
 sum.eig.rel <- sum(explainvar1.rel, explainvar2.rel, explainvar3.rel)
 
-# DOM Scores
-otu.scores <- add.spec.scores(pcoa.rel,OTUsREL,method="cor.scores",multi=1,Rscale=F,scaling="1")
-otu.scores <- as.matrix(otu.scores$cproj)[,1:2]
-otu.scores <- otu.scores[abs(otu.scores[,1]) > 0.65 | abs(otu.scores[,2]) > 0.65, ]
+# OTU Scores
+otu.scores <- t(cor(pcoa.rel$points,OTUsREL))
+otu.scores <- as.matrix(otu.scores)[,1:2]
+otu.scores <- otu.scores[abs(otu.scores[,1]) > 0.7|abs(otu.scores[,2]) > 0.7,]
 ```
 
-## Figure 2: Bacterial Community Composition Ordination Figures (Rel Abundance)
-```{r, results='hide'}
-# Make Lake-Mol in design file
-design$Lake_Mol <- paste(design$Lake, design$Molecule, sep = "_")
+# Resource Heterogeneity and Community Diversity
+## Structural Relationships
+```{r}
+# Organize Data
+nuts$PCA <- as.numeric(PCA.res1 + 1)
+dat1D <- data.frame(alpha.div[alpha.div$Molecule == "DNA", ], nuts[order(nuts$Site), ])
+dat1R <- data.frame(alpha.div[alpha.div$Molecule == "RNA", ], nuts[order(nuts$Site), ])
+dat2D <- data.frame(dat1D[dat1D$Year == "2012", ], res.div[order(rownames(res.div)), ])
+dat2R <- data.frame(dat1R[dat1R$Year == "2012", ], res.div[order(rownames(res.div)), ])
+dat2  <- data.frame(rbind(dat2D, dat2R))
+dat2  <- dat2[order(dat2$Lake), ]
 
-# Custom Color Palette for Points
-palette(rainbow_hcl(10, c = 80, l = 60)) 
-lake.col <- rep(NA, length(unique(design$Lake)))
-names(lake.col) <- unique(design$Lake)
-lake.col <- as.numeric(factor(design$Lake))
-design$lake.col <- NA
-for (i in 1:dim(design)[1]){
-  design$lake.col[i] <- which(levels(design$Lake) == design$Lake[i])
+# Resource Concentration and Diversity (Total)
+mod1 <- lm(S.rar ~ PCA, data = dat1D[dat1D$Lake != "Pony", ])
+mod2 <- lm(simpsE ~ PCA, data = dat1D[dat1D$Lake != "Pony", ])
+summary(mod1);summary(mod2)
+
+# Resource Heterogeneity and Divesity (Total)
+mod3 <- lm(S.rar ~ S.res, data = dat2D[dat2D$Lake != "Pony", ])
+mod4 <- lm(simpsE ~ S.res, data = dat2D[dat2D$Lake != "Pony", ])
+summary(mod3);summary(mod4)
+
+# Same Tests with Active Community
+mod5 <- lm(S.rar ~ PCA, data = dat1R[dat1R$Lake != "Pony", ])
+mod6 <- lm(simpsE ~ PCA, data = dat1R[dat1R$Lake != "Pony", ])
+mod7 <- lm(S.rar ~ S.res, data = dat2R[dat2R$Lake != "Pony", ])
+mod8 <- lm(simpsE ~ S.res, data = dat2R[dat2R$Lake != "Pony", ])
+summary(mod8)
+
+# Stats
+mod4.p <- round(summary(mod4)$coefficients[2,4], 3)
+
+# Prediction Frames
+pred.frame1 <- data.frame(PCA = seq(0, 2.1, 0.1))
+pred.frame2 <- data.frame(S.res = seq(542,572,2))
+
+# Correlation Test
+cor.test(~ S.res + PCA, data = dat2D[dat2D$Lake != "Pony", ])
+```
+
+## Structural Relationship Plots
+```{r, results = "hide"}
+# Confidence Hulls
+add.hull <- function(model = "", pred.frame = ""){
+  CI.U <- predict(model, interval = "c", newdata=pred.frame)[, "upr"]
+  CI.L <- predict(model, interval = "c", newdata=pred.frame)[, "lwr"]
+  pred.frame2 <- unlist(pred.frame)
+  X.Vec <- c(pred.frame2, tail(pred.frame2, 1), rev(pred.frame2),
+               head(pred.frame2, 1))
+  Y.Vec <- c(CI.U, tail(CI.L, 1), rev(CI.L), head(CI.U,1))
+  polygon(X.Vec, Y.Vec, col = "gray90", border = NA)
 }
 
-# Define Plot Symbols
-lake.pch <- rep(NA, length(design$Molecule))
-for (i in 1:length(design$Molecule)){
-if (design$Molecule[i] == "DNA"){
-    lake.pch[i] <- 16
-  }else{
-    lake.pch[i] <- 17
-  }}
-
-png(filename="../figures/Figure2.png",
-    width = 1200, height = 900, res = 96*2, bg = "white")
+png(filename="../figures/Figure1.png",
+    width = 1600, height = 1600, res = 96*2, bg = "white")
 par(opar)
+
+layout(matrix(1:4, nrow = 2, byrow = F))
+par(mar = c(0.5, 1, 1, 1) + 0.1, oma = c(5, 5.5, 0, 0) + 0.1)
+
+# Resource Concentration vs Species Richness
+plot(dat1D$S.rar ~ dat1D$PCA, 
+     xlab = "", ylab = "", axes = F,
+     xlim = c(0, 2.1), ylim = c(400, 1200), las = 1,
+     pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+add.hull(model = mod1, pred.frame = pred.frame1)
+matlines(pred.frame1, predict(mod1, interval = "c", newdata=pred.frame1),
+         lty=c(2,3,3), lwd=c(4,2,2), col="black")
+points(dat1D$S.rar ~ dat1D$PCA,
+       pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+legend("bottomright", legend = bquote(italic(N.S.)), 
+       bty = "n", cex = 1.5, inset = 0.01)
+# mtext("Nutrients", side = 1, line = 3, cex = 1.5)
+mtext("Species Richness", side = 2, line = 4, cex = 1.5)
+axis(1, lwd = 2, labels = F, at = c(0, 2))
+axis(1, lwd = 2, tck = -0.02, labels = F)
+axis(2, lwd = 2, labels = T, las = 1)
+axis(3, lwd = 2, tck = -0.02, labels = F)
+axis(4, lwd = 2, tck = -0.02, labels = F)
+axis(1, lwd = 2, tck = 0.02, labels = F)
+axis(2, lwd = 2, tck = 0.02, labels = F)
+axis(3, lwd = 2, tck = 0.02, labels = F)
+axis(4, lwd = 2, tck = 0.02, labels = F)
+box(lwd = 2)
+
+# Resource Concentration vs Species Evenness
+plot(dat1D$simpsE ~ dat1D$PCA,
+     xlab = "", ylab = "", axes = F,
+     xlim = c(0, 2.1), ylim = c(0, 0.06), las = 1,
+     pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+add.hull(model = mod2, pred.frame = pred.frame1)
+matlines(pred.frame1, predict(mod2, interval = "c", newdata=pred.frame1),
+         lty=c(2,3,3), lwd=c(4,2,2), col="black")
+points(dat1D$simpsE ~ dat1D$PCA,
+       pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+legend("topright", legend = bquote(italic(N.S.)), 
+       bty = "n", cex = 1.5, inset = 0.01)
+mtext("Resource Concentration", side = 1, line = 3.5, cex = 1.5)
+mtext("Species Evenness", side = 2, line = 4, cex = 1.5)
+axis(1, lwd = 2, labels = c("low", "high"), at = c(0, 2))
+axis(1, lwd = 2, tck = -0.02, labels = F)
+axis(2, lwd = 2, labels = T, las = 1, at = c(seq(0, 0.06, 0.02)))
+axis(3, lwd = 2, tck = -0.02, labels = F)
+axis(4, lwd = 2, tck = -0.02, labels = F, at = c(seq(0, 0.06, 0.02)))
+axis(1, lwd = 2, tck = 0.02, labels = F)
+axis(2, lwd = 2, tck = 0.02, labels = F, at = c(seq(0, 0.06, 0.02)))
+axis(3, lwd = 2, tck = 0.02, labels = F)
+axis(4, lwd = 2, tck = 0.02, labels = F, at = c(seq(0, 0.06, 0.02)))
+box(lwd = 2)
+
+# Resource Richness vs Species Richness
+plot(dat2D$S.rar ~ dat2D$S.res,
+     xlab = "", ylab = "", type = "n", axes = F,
+     xlim = c(540, 572), ylim = c(400, 1200), las = 1,
+     pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+add.hull(model = mod3, pred.frame = pred.frame2)
+matlines(pred.frame2, predict(mod3, interval = "c", newdata=pred.frame2),
+         lty=c(2,3,3), lwd=c(4,2,2), col="black")
+points(dat2D$S.rar ~ dat2D$S.res,
+       pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+legend("topright", legend = bquote(italic(N.S.)), 
+       bty = "n", cex = 1.5, inset = 0.01)
+# mtext("DOM Richness", side = 1, line = 3, cex = 1.5)
+# mtext("Species Richness", side = 2, line = 3.5, cex = 1.5)
+axis(1, lwd = 2, labels = F, at = c(seq(540, 570, 10)))
+axis(2, lwd = 2, labels = F, las = 1)
+axis(3, lwd = 2, tck = -0.02, labels = F, at = c(seq(540, 570, 10)))
+axis(4, lwd = 2, tck = -0.02, labels = F)
+axis(1, lwd = 2, tck = 0.02, labels = F, at = c(seq(540, 570, 10)))
+axis(2, lwd = 2, tck = 0.02, labels = F)
+axis(3, lwd = 2, tck = 0.02, labels = F, at = c(seq(540, 570, 10)))
+axis(4, lwd = 2, tck = 0.02, labels = F)
+box(lwd = 2)
+
+# Resource Richness vs Species Eveness
+plot(dat2D$simpsE ~ dat2D$S.res,
+     xlab = "", ylab = "", type = "n", axes = F,
+     xlim = c(540, 572), ylim = c(0, 0.06), las = 1,
+     pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+add.hull(model = mod4, pred.frame = pred.frame2)
+matlines(pred.frame2, predict(mod4, interval = "c", newdata=pred.frame2),
+         lty=c(2,3,3), lwd=c(4,2,2), col="black")
+points(dat2D$simpsE ~ dat2D$S.res,
+       pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
+legend("bottomright", legend = bquote(italic(P) == .(mod4.p)), 
+       bty = "n", cex = 1.5, inset = 0.01)
+mtext("DOM Richness", side = 1, line = 3.5, cex = 1.5)
+# mtext("Species Evenness", side = 2, line = 3.5, cex = 1.5)
+axis(1, lwd = 2, labels = T, las = 1, at = c(seq(540, 570, 10)))
+axis(2, lwd = 2, labels = F, las = 1, at = c(seq(0, 0.06, 0.02)))
+axis(3, lwd = 2, tck = -0.02, labels = F, at = c(seq(540, 570, 10)))
+axis(4, lwd = 2, tck = -0.02, labels = F, at = c(seq(0, 0.06, 0.02)))
+axis(1, lwd = 2, tck = 0.02, labels = F, at = c(seq(540, 570, 10)))
+axis(2, lwd = 2, tck = 0.02, labels = F, at = c(seq(0, 0.06, 0.02)))
+axis(3, lwd = 2, tck = 0.02, labels = F, at = c(seq(540, 570, 10)))
+axis(4, lwd = 2, tck = 0.02, labels = F, at = c(seq(0, 0.06, 0.02)))
+box(lwd = 2)
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
+```
+
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Diversity"}
+img <- readPNG("../figures/Figure1.png")
+grid.raster(img)
+```
+
+## Compositional Relationships (dbRDA)
+```{r, warning = FALSE}
+# Define Environmental Gradients
+## Resource Concentration
+## dat1D; dat1R; dat2D; dat2R
+
+## DOM Composition
+## pcoa.res$points[, 1]; pcoa.res$points[, 2]; pcoa.res$points[, 3]
+
+## Community Composition
+# Define DNA and RNA Community
+OTUsREL.D <- OTUsREL[design$Molecule == "DNA" , ]
+OTUsREL.R <- OTUsREL[design$Molecule == "RNA" , ]
+OTUsREL.D2012 <- OTUsREL[design$Molecule == "DNA" & design$Year == "2012" , ]
+OTUsREL.R2012 <- OTUsREL[design$Molecule == "RNA" & design$Year == "2012" , ]
+
+# Calculate Bray-Curtis Distances for Bacteria
+Bray.REL.D <- vegdist(decostand(OTUsREL.D, "log"), "bray")
+Bray.REL.R <- vegdist(decostand(OTUsREL.R, "log"), "bray")
+Bray.REL.D2012 <- vegdist(decostand(OTUsREL.D2012, "log"), "bray")
+Bray.REL.R2012 <- vegdist(decostand(OTUsREL.R2012, "log"), "bray")
+
+# Resource Concentration dbRDA 
+dbRDA.D <- capscale(Bray.REL.D ~ dat1D$PCA, comm = OTUsREL.D, add = T)
+dbRDA.R <- capscale(Bray.REL.R ~ dat1R$PCA, comm = OTUsREL.R, add = T)
+bdRDA.D2012 <- capscale(Bray.REL.D2012 ~ dat2D$PCA, comm = OTUsREL.D2012, add = T)
+dbRDA.R2012 <- capscale(Bray.REL.R2012 ~ dat2R$PCA, comm = OTUsREL.R2012, add = T)
+
+anova(bdRDA.D2012, permutations = how(nperm=9999))
+RsquareAdj(bdRDA.D2012)
+anova(dbRDA.R2012, permutations = how(nperm=9999))
+RsquareAdj(dbRDA.R2012)
+
+# With Pony and Lily Removed (DNA)
+dat2D.2 <- dat2D[dat2D$Lake != "Pony" & dat2D$Lake != "Lily", ]
+OTUsREL.D.2 <- OTUsREL[design$Molecule == "DNA" & design$Year == "2012" & 
+                         design$Lake != "Pony" & design$Lake != "Lily", ]
+Bray.REL.D.2 <- vegdist(OTUsREL.D.2, "bray")
+dbRDA.D.2 <- capscale(Bray.REL.D.2 ~ dat2D.2$PCA, comm = OTUsREL.D.2, add = T)
+
+anova(dbRDA.D.2, permutations = how(nperm=9999))
+RsquareAdj(dbRDA.D.2)
+
+# DOM Diversity dbRDA
+Bray.RES <- vegdist(decostand(resREL, "log"), "bray")
+pcoa.RES <- cmdscale(Bray.RES, k = 3, eig = T)
+dbRDA.D.DOM <- capscale(Bray.REL.D2012 ~ pcoa.RES$points, 
+                                comm = OTUsREL.D2012, add = T)
+dbRDA.R.DOM <- capscale(Bray.REL.R2012 ~ pcoa.RES$points,
+                                comm = OTUsREL.R2012, add = T)
+
+anova(dbRDA.D.DOM, permutations = how(nperm=9999))
+RsquareAdj(dbRDA.D.DOM)
+anova(dbRDA.R.DOM, permutations = how(nperm=9999))
+RsquareAdj(dbRDA.R.DOM)
+
+# With Pony and Lily Removed (DNA)
+## Subset OTUs
+OTUsREL.D.2 <- OTUsREL[design$Molecule == "DNA" & design$Year == "2012" & 
+                       design$Lake != "Pony" & design$Lake != "Lily", ]
+rownames(OTUsREL.D.2) <- gsub("2012_DNA", "", rownames(OTUsREL.D.2))
+Bray.REL.D2012.2 <- vegdist(decostand(OTUsREL.D.2, "log"), method = "bray")
+
+## Subset Resources
+resREL2 <- resREL[rownames(resREL) != "Pony" & rownames(resREL) != "Lily", ]
+Bray.RES2 <- vegdist(resREL2, method = "bray")
+pcoa.RES2 <- cmdscale(Bray.RES2, eig = TRUE, k = 2)
+
+## dbRDA Analysis
+dbRDA.D.DOM.2 <- capscale(Bray.REL.D2012.2 ~ pcoa.RES2$points, add = T)
+anova(dbRDA.D.DOM.2, permutations = how(nperm=9999), model = "direct")
+RsquareAdj(dbRDA.D.DOM.2)
+
+# Resource Concentration/Composition Correlations
+cor.test(dat2D$PCA, pcoa.res$points[,1])
+cor.test(dat2D$PCA, pcoa.res$points[,2])
+cor.test(dat2D$PCA, pcoa.res$points[,3])
+```
+
+# Bacterial PCoA Plot with Env Vectors
+```{r, results='hide'}
+# PCoA of Total Community
+bray.BAC <- vegdist(decostand(OTUsREL, "log"), "bray")
+pcoa.BAC <- cmdscale(Bray.REL.D2012, k = 2, eig = T)
+explainvar1 <- round(pcoa.BAC$eig[1] / sum(pcoa.BAC$eig), 3) * 100
+explainvar2 <- round(pcoa.BAC$eig[2] / sum(pcoa.BAC$eig), 3) * 100
+
+# PCoA of Resoruces
+bray.RES <- vegdist(decostand(resREL, "log"), "bray")
+pcoa.RES <- cmdscale(bray.RES, k = 3, eig = T)
+
+# Resource Concentrations
+cons.RES <- dat2D$PCA
+
+# Initial Plot as PNG
+png(filename="../figures/Figure2.png",
+    width = 1300, height = 900, res = 96*2, bg = "white")
+
 # Define Plot Parameters
-layout(matrix(c(1, 1, 1, 2), ncol = 4, byrow = T))
-par(mar = c(4, 5, 1, 0) + 0.5, oma = c(1, 1, 1, 1))
+par(opar)
+par(mar = c(4, 5, 1, 1) + 0.5)
 
 # Initiate Plot 1
-plot(pcoa.rel$points[ ,1], pcoa.rel$points[ ,2], 
-     ylim = c(-0.4, 0.4), xlim = c(-0.25, 0.55), 
-     xlab = paste("PCoA 1 (", explainvar1.rel, "%)", sep = ""),
-     ylab = paste("PCoA 2 (", explainvar2.rel, "%)", sep = ""),
+plot(pcoa.BAC$points[ ,1], pcoa.BAC$points[ ,2], 
+     ylim = c(-0.4, 0.4), xlim = c(-0.4, 0.6), 
+     xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
      #xlab = "", ylab = "", xaxt = "n", yaxt = "n",
-     pch = lake.pch, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1, 
+     pch = 22, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1, 
      axes = FALSE)
 
 # Add Axes
@@ -424,1673 +546,545 @@ abline(h = 0, v = 0, lty = 3)
 box(lwd = 2)
   
 # Add Points & Labels
-points(pcoa.rel$points[ ,1], pcoa.rel$points[ ,2], pch = lake.pch, 
-       cex = 4, bg = "gray", col = lake.col)
-  
-# Add Molecule Hulls
-ordihull(cbind(pcoa.rel$points[ ,1], pcoa.rel$points[ ,2]),
-         design$Molecule, lwd=2, draw = "polygon", col="gray80", border = "black", 
-         label=TRUE, cex=1, bty = 'n')
+points(pcoa.BAC$points[ ,1], pcoa.BAC$points[ ,2], pch = 22, 
+       cex = 2, bg = "gray", lwd = 2)
 
-text(0.35, -0.12, "Pony", col = 7, cex = 1)
-text(0.41, 0.28, "Lily", col = 5, cex = 1)
-  
-# Add Legends as Plot 2
-par(mar = c(4, 0, 1, 0) + 0.5)
-plot.new()
-legend("bottomleft", c("DNA", "RNA"), pch = c(16, 17), 
-       col = "gray", bty = "n", pt.cex = 1.5, cex = 1.5, 
-       y.intersp = 1, inset = c(-0.1, 0, 0, 0.1))
-legend("topleft", levels(design$Lake), ncol = 1, pch = 16, col = 1:10, 
-       bty = "n", pt.cex = 1.5, cex = 1.5, y.intersp = 1, 
-       inset = c(-0.1, 0, 0, 0.1))
+# Resource Concentration Vector
+res.con <- envfit(pcoa.BAC, cons.RES)
+con.arrows <- res.con[[1]]$arrows * 0.5
+arrows(0, 0, con.arrows[, 1], con.arrows[, 2], col = "red", length = 0.1, lwd = 2)
+text(con.arrows[, 1] * 1.2, con.arrows[, 2] * 1.2, "Conc.", col = "red", cex = 1)
 
+# DOM Composition Vectors
+res.com <- envfit(pcoa.BAC, pcoa.RES$points[,1:2])
+com.arrows <- res.com[[1]]$arrows * 0.3
+arrows(0, 0, com.arrows[1, 1], com.arrows[1, 2], col = "red", length = 0.1, lwd = 2)
+arrows(0, 0, com.arrows[2, 1], com.arrows[2, 2], col = "red", length = 0.1, lwd = 2)
+text(com.arrows[1, 1] * 1.15, com.arrows[1, 2] * 1.15, "DOM 1", col = "red", cex = 1)
+text(com.arrows[2, 1] * 1, com.arrows[2, 2] * 1.15, "DOM 2", col = "red", 
+     cex = 1, pos = 1)
 
+text(0.45, -0.1, "Pony", col = "black", cex = 0.8)
+text(0.55, 0.15, "Lily", col = "black", cex = 0.8)
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices
-par(opar)
 ```
 
-```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="PCoA Plots"}
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Diversity"}
 img <- readPNG("../figures/Figure2.png")
 grid.raster(img)
 ```
 
-# Mantel Test Between DOM and BCC
-```{r}
-OTUsREL2012D <- OTUsREL[design$Year == "2012" & design$Molecule == "DNA", ]
-OTUsREL2012R <- OTUsREL[design$Year == "2012" & design$Molecule == "RNA", ]
-mantel.rtest(vegdist(OTUsREL2012D, "bray"), vegdist(resREL, "bray"))
-mantel.rtest(vegdist(OTUsREL2012R, "bray"), vegdist(resREL, "bray"))
-```
-
-## PERMANOVA
-```{r}
-beta.dis <- betadisper(vegdist(OTUsREL, "bray"), design$Lake)
-permutest(beta.dis)
-
-per.bray.pa <- adonis(OTUsPA ~ design$Lake + design$Molecule, method = "bray")
-per.bray.rel <- adonis(OTUsREL ~ design$Lake + design$Molecule, method = "bray")
-per.bray.l <- adonis(OTUsREL.log ~ design$Lake + design$Molecule, method = "bray")
-per.uni.pa <- adonis(uni.frac.u ~ design$Lake + design$Molecule)
-per.uni.rel <- adonis(uni.frac.w ~ design$Lake + design$Molecule)
-per.uni.l <- adonis(uni.frac.wl ~ design$Lake + design$Molecule)
-```
-
-## PERMANOVA Table
-```{r, results="asis"}
-per.models <- data.frame(matrix(NA, ncol = 4, nrow = 6))
-colnames(per.models) <- c("Lake R2", "Lake P", "Molecule R2", "Molecule P")
-row.names(per.models) <- c("Bray-Curtis -- PA", "Bray-Curtis -- REL", "Bray-Curtis -- Log",
-                    "UniFrac -- PA", "UniFrac -- REL", "UniFrac -- Log")
-per.models[1, ] <- c(per.bray.pa$aov.tab$R2[1], per.bray.pa$aov.tab$`Pr(>F)`[1],
-                     per.bray.pa$aov.tab$R2[2], per.bray.pa$aov.tab$`Pr(>F)`[2])
-per.models[2, ] <- c(per.bray.rel$aov.tab$R2[1], per.bray.rel$aov.tab$`Pr(>F)`[1],
-                     per.bray.rel$aov.tab$R2[2], per.bray.rel$aov.tab$`Pr(>F)`[2])
-per.models[3, ] <- c(per.bray.l$aov.tab$R2[1], per.bray.l$aov.tab$`Pr(>F)`[1],
-                     per.bray.l$aov.tab$R2[2], per.bray.l$aov.tab$`Pr(>F)`[2])
-per.models[4, ] <- c(per.uni.pa$aov.tab$R2[1], per.uni.pa$aov.tab$`Pr(>F)`[1],
-                     per.uni.pa$aov.tab$R2[2], per.uni.pa$aov.tab$`Pr(>F)`[2])
-per.models[5, ] <- c(per.uni.rel$aov.tab$R2[1], per.uni.rel$aov.tab$`Pr(>F)`[1],
-                     per.uni.rel$aov.tab$R2[2], per.uni.rel$aov.tab$`Pr(>F)`[2])
-per.models[6, ] <- c(per.uni.l$aov.tab$R2[1], per.uni.l$aov.tab$`Pr(>F)`[1],
-                     per.uni.l$aov.tab$R2[2], per.uni.l$aov.tab$`Pr(>F)`[2])
-
-per.models[, c(1,3)] <- round(per.models[, c(1,3)], 2)
-
-addtorow <- list()
-addtorow$pos <- list(0, 0)
-addtorow$command <- c("Model & \\multicolumn{2}{c}{Lake} & \\multicolumn{2}{c}{Molecule} \\\\\n", 
-                      " & \\multicolumn{1}{c}{R\\textsuperscript{2}} & 
-                          \\multicolumn{1}{c}{\\emph{P}} & 
-                          \\multicolumn{1}{c}{R\\textsuperscript{2}} & 
-                          \\multicolumn{1}{c}{\\emph{P}} \\\\\n")
-per.tab <- xtable(per.models, auto = TRUE)
-align(per.tab) <- c("l ","r ", "r ", "r ", "r ")
-print(per.tab, add.to.row = addtorow, include.colnames = FALSE, 
-      type= "latex", file="../tables/Table5.tex", 
-      hline.after = c(-1, -1, 0, nrow(per.tab)))
-print(per.tab, add.to.row = addtorow, include.colnames = FALSE, 
-      comment = FALSE, hline.after = c(-1, -1, 0, nrow(per.tab)))
-```
-
-
-# Nutrient Concentrations Explain BCC and DOM Composition
-
-## Resource Diversity (Evennes) and Nutrient Concentrations
-```{r}
-nuts2012 <- nuts[nuts$year == "2012", ]
-evenmod <- lm(res.div$res.simpsE ~ nuts2012$TN+nuts2012$TP)
-# Not using this because variation in resource alpha doesn't appear to be meaningful
-```
-
-
-## Distance Based Redundancy Analysis
-```{r, results = 'hide'}
-# Define Environmental Matrix
-env.chem <- as.data.frame(scale(apply(nuts[,c(3:5)], 2, log10)))
-row.names(env.chem) <- paste(nuts$sample, nuts$year, sep = "-")
-env.chem <- as.data.frame(env.chem[sort(row.names(env.chem)), ])
-
-env.chem2012 <- as.data.frame(env.chem[grep("2012", row.names(env.chem)), ])
-designDNA <- design[design$Molecule == "DNA", ]
-designRNA <- design[design$Molecule == "RNA", ]
-designRES <- design[design$Molecule == "DNA" & design$Year == "2012", ]
-
-# Define DNA Community
-OTUsREL.D <- OTUsREL[design$Molecule == "DNA" , ]
-
-# Define RNA Community
-OTUsREL.R <- OTUsREL[design$Molecule == "RNA" , ]
-
-# Calculate Bray-Curtis Distances for Bacteria
-Bray.REL.D <- vegdist(OTUsREL.D, "bray")
-Bray.REL.R <- vegdist(OTUsREL.R, "bray")
- 
-# Calculate UniFrac Distances for Bacteria
-OTU.tab.D <- otu_table(OTUsREL.D, taxa_are_rows = F)
-OTU.tab.R <- otu_table(OTUsREL.R, taxa_are_rows = F)
-PHY.tree <- phy_tree(hmwf.tree)
-phylo.seq.D <- phyloseq(OTU.tab.D, PHY.tree)
-phylo.seq.R <- phyloseq(OTU.tab.R, PHY.tree)
-Uni.REL.D <- UniFrac(phylo.seq.D, weighted = TRUE, normalized = TRUE)
-Uni.REL.R <- UniFrac(phylo.seq.R, weighted = TRUE, normalized = TRUE)
-
-# Bray-Curtis Distances for Organic Matter
-Bray.OM <- vegdist(resREL, "bray")
-
-# Conduct dbRDA 
-hmwf.bray.D.rda <- capscale(Bray.REL.D ~ env.chem$TN + env.chem$TP, 
-                            comm = OTUsREL.D, add = T)
-hmwf.bray.R.rda <- capscale(Bray.REL.R ~ env.chem$TN + env.chem$TP, 
-                            comm = OTUsREL.R, add = T)
-hmwf.uni.D.rda <- capscale(Uni.REL.R ~ env.chem$TN + env.chem$TP, 
-                           comm = OTUsREL.D, add = T)
-hmwf.uni.R.rda <- capscale(Uni.REL.R ~ env.chem$TN + env.chem$TP, 
-                            comm = OTUsREL.R, add = T)
-hmwf.res.rda <- capscale(Bray.OM ~ env.chem2012$TN + env.chem2012$TP,
-                         comm = resREL, add = T)
-
-anova(hmwf.bray.D.rda)
-RsquareAdj(hmwf.bray.D.rda)
-anova(hmwf.bray.R.rda)
-RsquareAdj(hmwf.bray.R.rda)
-anova(hmwf.uni.D.rda)
-RsquareAdj(hmwf.uni.D.rda)
-anova(hmwf.uni.R.rda)
-RsquareAdj(hmwf.uni.R.rda)
-anova(hmwf.res.rda)
-RsquareAdj(hmwf.res.rda)
-
-rda.D.explainvar1 <- round(hmwf.bray.D.rda$CCA$eig[1] / sum(hmwf.bray.D.rda$CCA$eig), 3) * 100
-rda.D.explainvar2 <- round(hmwf.bray.D.rda$CCA$eig[2] / sum(hmwf.bray.D.rda$CCA$eig), 3) * 100
-rda.R.explainvar1 <- round(hmwf.bray.R.rda$CCA$eig[1] / sum(hmwf.bray.R.rda$CCA$eig), 3) * 100
-rda.R.explainvar2 <- round(hmwf.bray.R.rda$CCA$eig[2] / sum(hmwf.bray.R.rda$CCA$eig), 3) * 100
-rda.UD.explainvar1 <- round(hmwf.uni.D.rda$CCA$eig[1] / sum(hmwf.uni.D.rda$CCA$eig), 3) * 100
-rda.UD.explainvar2 <- round(hmwf.uni.D.rda$CCA$eig[2] / sum(hmwf.uni.D.rda$CCA$eig), 3) * 100
-rda.UR.explainvar1 <- round(hmwf.uni.R.rda$CCA$eig[1] / sum(hmwf.uni.R.rda$CCA$eig), 3) * 100
-rda.UR.explainvar2 <- round(hmwf.uni.R.rda$CCA$eig[2] / sum(hmwf.uni.R.rda$CCA$eig), 3) * 100
-rda.Res.explainvar1 <- round(hmwf.res.rda$CCA$eig[1] / sum(hmwf.res.rda$CCA$eig), 3) * 100
-rda.Res.explainvar2 <- round(hmwf.res.rda$CCA$eig[2] / sum(hmwf.res.rda$CCA$eig), 3) * 100
-
-# Remove Lily and Pony
-env.chem.L <- env.chem[nuts$sample != "Pony" & nuts$sample != "Lily", ]
-OTUsREL.D.L <- OTUsREL[design$Molecule == "DNA" & design$Lake != "Pony" & design$Lake != "Lily", ]
-OTUsREL.R.L <- OTUsREL[design$Molecule == "RNA" & design$Lake != "Pony" & design$Lake != "Lily", ]
-Bray.REL.D.L <- vegdist(OTUsREL.D.L, "bray")
-Bray.REL.R.L <- vegdist(OTUsREL.R.L, "bray")
-hmwf.bray.D.L.rda <- capscale(Bray.REL.D.L ~ env.chem.L$TN + env.chem.L$TP, 
-                            comm = OTUsREL.D.L, add = T)
-hmwf.bray.R.L.rda <- capscale(Bray.REL.R.L ~ env.chem.L$TN + env.chem.L$TP, 
-                            comm = OTUsREL.R.L, add = T)
-anova(hmwf.bray.D.L.rda)
-RsquareAdj(hmwf.bray.D.L.rda)
-anova(hmwf.bray.R.L.rda)
-RsquareAdj(hmwf.bray.R.L.rda)
-
-# Partition Each
-anova(hmwf.bray.D.rda, by = "terms")
-anova(hmwf.bray.R.rda, by = "terms")
-anova(hmwf.uni.D.rda, by = "terms")
-anova(hmwf.uni.R.rda, by = "terms")
-
-
-hmwf.bray.D.L.rda <- capscale(Bray.REL.D.L ~ env.chem.L$TN, 
-                            comm = OTUsREL.D.L, add = T)
-hmwf.bray.R.L.rda <- capscale(Bray.REL.R.L ~ env.chem.L$TN, 
-                            comm = OTUsREL.R.L, add = T)
-anova(hmwf.bray.D.L.rda)
-RsquareAdj(hmwf.bray.D.L.rda)
-anova(hmwf.bray.R.L.rda)
-RsquareAdj(hmwf.bray.R.L.rda)
-
-hmwf.bray.D.L.rda <- capscale(Bray.REL.D.L ~ env.chem.L$TP, 
-                            comm = OTUsREL.D.L, add = T)
-hmwf.bray.R.L.rda <- capscale(Bray.REL.R.L ~ env.chem.L$TP, 
-                            comm = OTUsREL.R.L, add = T)
-anova(hmwf.bray.D.L.rda)
-RsquareAdj(hmwf.bray.D.L.rda)
-anova(hmwf.bray.R.L.rda)
-RsquareAdj(hmwf.bray.R.L.rda)
-```
-
-## Figure 3: dbRDA
-```{r, results='hide'}
-png(filename="../figures/Figure3.png",
-    width = 1800, height = 1800, res = 96*2, bg = "white")
-par(opar)
-# Define Plot Parameters
-layout(matrix(c(1:4), ncol = 2, byrow = T))
-par(mar = c(5, 5, 3, 2) + 0.1, oma = c(1, 1, 1, 1))
-
-# Initiate Plot 1
-plot(scores(hmwf.uni.D.rda, display = "wa"), xlim = c(-1, 2), ylim = c(-1.5, 2),
-     xlab = paste("dbRDA 1 (", rda.UD.explainvar1, "%)", sep = ""),
-     ylab = paste("dbRDA 2 (", rda.UD.explainvar2, "%)", sep = ""),
-     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
-
-# Add Axes
-axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
-axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
-abline(h = 0, v = 0, lty = 3)
-box(lwd = 2)
-
-# Add Points & Labels
-points(scores(hmwf.uni.D.rda, display = "wa"),
-       pch = 16, cex = 2, bg = "gray", col = designDNA$lake.col)
-
-# Add Environmental Vectors
-vectors <- scores(hmwf.uni.D.rda, display = "bp")
-row.names(vectors) <- c("TN", "TP")
-arrows(0, 0, vectors[,1] , vectors[, 2], 
-       lwd = 2, lty = 1, length = 0.2, col = "red")
-text(vectors[,1], vectors[, 2], pos = c(1, 1), 
-     labels = row.names(vectors), col = "red", cex = 0.8)
-axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
-     at = c(-0.5, 0, 0.5, 1, 1.5), 
-     labels = c(-0.5, 0, 0.5, 1, 1.5), col.axis = "red")
-axis(side = 4, lwd.ticks=2, cex.axis = 0.8, las = 1, col = "red", lwd = 2.2, 
-     at = c(-1, 0, 1), 
-     labels = c(-1, 0, 1), col.axis = "red")
-
-# Initiate Plot 2
-plot(scores(hmwf.uni.R.rda, display = "wa"), xlim = c(-1, 2), ylim = c(-1.5, 2),
-     xlab = paste("dbRDA 1 (", rda.UR.explainvar1, "%)", sep = ""),
-     ylab = paste("dbRDA 2 (", rda.UR.explainvar2, "%)", sep = ""),
-     pch = 17, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
-
-# Add Axes
-axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
-axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
-abline(h = 0, v = 0, lty = 3)
-box(lwd = 2)
-
-# Add Points & Labels
-points(scores(hmwf.uni.R.rda, display = "wa"),
-       pch = 17, cex = 2, bg = "gray", col = designRNA$lake.col)
-
-# Add Environmental Vectors
-vectors <- scores(hmwf.uni.R.rda, display = "bp")
-row.names(vectors) <- c("TN", "TP")
-arrows(0, 0, vectors[,1] , vectors[, 2], 
-       lwd = 2, lty = 1, length = 0.2, col = "red")
-text(vectors[,1], vectors[, 2], pos = c(1, 1), 
-     labels = row.names(vectors), col = "red", cex = 0.8)
-axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
-     at = c(-0.5, 0, 0.5, 1, 1.5), 
-     labels = c(-0.5, 0, 0.5, 1, 1.5), col.axis = "red")
-axis(side = 4, lwd.ticks=2, cex.axis = 0.8, las = 1, col = "red", lwd = 2.2, 
-     at = c(-1, 0, 1), 
-     labels = c(-1, 0, 1), col.axis = "red")
-
-# Initiate Plot 3
-plot(scores(hmwf.res.rda, display = "wa"), xlim = c(-1, 2), ylim = c(-1.5, 2),
-     xlab = paste("dbRDA 1 (", rda.Res.explainvar1, "%)", sep = ""),
-     ylab = paste("dbRDA 2 (", rda.Res.explainvar2, "%)", sep = ""),
-     pch = 15, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
-
-# Add Axes
-axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
-axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
-abline(h = 0, v = 0, lty = 3)
-box(lwd = 2)
-
-# Add Points & Labels
-points(scores(hmwf.res.rda, display = "wa"),
-       pch = 15, cex = 2, bg = "gray", col = designRES$lake.col)
-
-# Add Environmental Vectors
-vectors <- scores(hmwf.res.rda, display = "bp")
-row.names(vectors) <- c("TN", "TP")
-arrows(0, 0, vectors[,1] , vectors[, 2], 
-       lwd = 2, lty = 1, length = 0.2, col = "red")
-text(vectors[,1], vectors[, 2], pos = c(1, 1), 
-     labels = row.names(vectors), col = "red", cex = 0.8)
-axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
-     at = c(-0.5, 0, 0.5, 1, 1.5), 
-     labels = c(-0.5, 0, 0.5, 1, 1.5), col.axis = "red")
-axis(side = 4, lwd.ticks=2, cex.axis = 0.8, las = 1, col = "red", lwd = 2.2, 
-     at = c(-1, 0, 1), 
-     labels = c(-1, 0, 1), col.axis = "red")
-
-plot.new()
-par(mar = c(0, 0, 0, 0) + 0.5)
-legend("topleft", legend = designRES$Lake, pch = 16, col = designRES$lake.col, 
-       bty = "n", ncol = 2, cex = 1.5, pt.cex = 1.5, y.intersp = 1.5, inset = c(-0.1, 0, 0, 0))
-legend("bottomleft", legend = c("DNA", "RNA", "OM"), pch = c(16, 17, 15), 
-       col = "gray", bty = "n", cex = 1.5, pt.cex = 1.5, y.intersp = 1.5, inset = c(-0.1, 0, 0, 0.1))
-
-dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices
-par(opar)
-```
-
-```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="PCoA Supplement"}
-img <- readPNG("../figures/Figure3.png")
-grid.raster(img)
-```
-
-# Influence of Organic Matter on Community Composition
-```{r}
-# PCoA of OM
-res.mat <- hmwf.bray.res
-PcoA.RES <- cmdscale(res.mat, eig = TRUE, k = 4) 
-var.exp <- sum(round(PcoA.RES$eig[1] / sum(PcoA.RES$eig), 3) * 100,
-               round(PcoA.RES$eig[2] / sum(PcoA.RES$eig), 3) * 100,
-               round(PcoA.RES$eig[3] / sum(PcoA.RES$eig), 3) * 100,
-               round(PcoA.RES$eig[4] / sum(PcoA.RES$eig), 3) * 100)
-
-# 2012 Env Data
-env.chem2012 <- as.data.frame(env.chem[grep("2012", row.names(env.chem)), ])
-
-# 2012 Communities Only
-OTUsREL2012.D <- OTUsREL[design$Molecule == "DNA" & design$Year == "2012", ]
-OTUsREL2012.R <- OTUsREL[design$Molecule == "RNA" & design$Year == "2012", ]
-
-# Calculate Bray-Curtis Distances for Bacteria
-Bray.REL2012.D <- vegdist(OTUsREL2012.D, "bray")
-Bray.REL2012.R <- vegdist(OTUsREL2012.R, "bray")
- 
-# Calculate UniFrac Distances for Bacteria
-OTU.tab2012.D <- otu_table(OTUsREL2012.D, taxa_are_rows = F)
-OTU.tab2012.R <- otu_table(OTUsREL2012.R, taxa_are_rows = F)
-PHY.tree <- phy_tree(hmwf.tree)
-phylo.seq2012.D <- phyloseq(OTU.tab2012.D, PHY.tree)
-phylo.seq2012.R <- phyloseq(OTU.tab2012.R, PHY.tree)
-Uni.REL2012.D <- UniFrac(phylo.seq2012.D, weighted = TRUE, normalized = TRUE)
-Uni.REL2012.R <- UniFrac(phylo.seq2012.R, weighted = TRUE, normalized = TRUE)
-
-# Conduct dbRDA 
-hmwf.bray.D.res.rda <- capscale(Bray.REL2012.D ~ PcoA.RES$points, 
-                            comm = OTUsREL2012.D, add = T)
-hmwf.bray.R.res.rda <- capscale(Bray.REL2012.R ~ PcoA.RES$points, 
-                            comm = OTUsREL2012.R, add = T)
-hmwf.uni.D.res.rda <- capscale(Uni.REL2012.D ~ PcoA.RES$points, 
-                           comm = OTUsREL2012.D, add = T)
-hmwf.uni.R.res.rda <- capscale(Uni.REL2012.R ~ PcoA.RES$points, 
-                            comm = OTUsREL2012.R, add = T)
-
-# Eigenanalysis
-rda.resD.explainvar1 <- round(hmwf.uni.D.res.rda$CCA$eig[1] /
-                                sum(hmwf.uni.D.res.rda$CCA$eig), 3) * 100
-rda.resD.explainvar2 <- round(hmwf.uni.D.res.rda$CCA$eig[2] /
-                                sum(hmwf.uni.D.res.rda$CCA$eig), 3) * 100
-rda.resR.explainvar1 <- round(hmwf.uni.R.res.rda$CCA$eig[1] /
-                                sum(hmwf.uni.R.res.rda$CCA$eig), 3) * 100
-rda.resR.explainvar2 <- round(hmwf.uni.R.res.rda$CCA$eig[2] /
-                                sum(hmwf.uni.R.res.rda$CCA$eig), 3) * 100
-
-# Tests
-anova(hmwf.bray.D.res.rda)
-RsquareAdj(hmwf.bray.D.res.rda)
-anova(hmwf.bray.R.res.rda)
-RsquareAdj(hmwf.bray.R.res.rda)
-anova(hmwf.uni.D.res.rda)
-RsquareAdj(hmwf.uni.D.res.rda)
-anova(hmwf.uni.R.res.rda)
-RsquareAdj(hmwf.uni.R.res.rda)
-
-# Full Model With Nutrients
-PCoA.RES <- cmdscale(res.mat, eig = TRUE, k = 1) 
-env.chem2012 <- as.matrix(env.chem2012)
-env.red <- princomp(env.chem2012)$scores[,1]
-hmwf.bray.D.res.rda2 <- capscale(Bray.REL2012.D ~ PCoA.RES$points + env.red, 
-                            comm = OTUsREL2012.D, add = T)
-hmwf.bray.R.res.rda2 <- capscale(Bray.REL2012.R ~ PCoA.RES$points + env.red, 
-                            comm = OTUsREL2012.R, add = T)
-hmwf.uni.D.res.rda2 <- capscale(Uni.REL2012.R ~ PCoA.RES$points + env.red, 
-                           comm = OTUsREL2012.D, add = T)
-hmwf.uni.R.res.rda2 <- capscale(Uni.REL2012.R ~ PCoA.RES$points + env.red,  
-                            comm = OTUsREL2012.R, add = T)
-
-# Tests
-anova(hmwf.bray.D.res.rda2)
-RsquareAdj(hmwf.bray.D.res.rda2)
-anova(hmwf.bray.R.res.rda2)
-RsquareAdj(hmwf.bray.R.res.rda2)
-anova(hmwf.uni.D.res.rda2)
-RsquareAdj(hmwf.uni.D.res.rda2)
-anova(hmwf.uni.R.res.rda2)
-RsquareAdj(hmwf.uni.R.res.rda2)
-```
-
-## Plot
-```{r, results='hide'}
-png(filename="../figures/Figure4.png",
-    width = 1800, height = 900, res = 96*2, bg = "white")
-par(opar)
-# Define Plot Parameters
-layout(matrix(c(1, 1, 2, 2, 3), ncol = 5, byrow = T))
-par(mar = c(4, 5, 1, 1) + 0.5, oma = c(1, 1, 1, 1))
-
-# Initiate Plot 1
-plot(scores(hmwf.uni.D.res.rda, display = "wa"), xlim = c(-1, 1), ylim = c(-1, 1),
-     xlab = paste("dbRDA 1 (", rda.resD.explainvar1, "%)", sep = ""),
-     ylab = paste("dbRDA 2 (", rda.resD.explainvar2, "%)", sep = ""),
-     pch = 15, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
-
-# Add Axes
-axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
-axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
-abline(h = 0, v = 0, lty = 3)
-box(lwd = 2)
-
-# Add Points & Labels
-points(scores(hmwf.uni.D.res.rda, display = "wa"),
-       pch = 16, cex = 2, bg = "gray", col = designRES$lake.col)
-
-# Add Environmental Vectors
-vectors <- scores(hmwf.uni.D.res.rda, display = "bp")
-row.names(vectors) <- c("1", "2", "3", "4")
-arrows(0, 0, vectors[c(1:2),1] , vectors[c(1:2), 2], 
-       lwd = 2, lty = 1, length = 0.2, col = "red")
-text(vectors[c(1:2),1], vectors[c(1:2), 2], pos = c(1, 1), 
-     labels = row.names(vectors)[1:2], col = "red", cex = 0.8)
-axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
-     at = c(-0.5, 0, 0.5), 
-     labels = c(-0.5, 0, 0.5), col.axis = "red")
-axis(side = 4, lwd.ticks=2, cex.axis = 0.8, las = 1, col = "red", lwd = 2.2, 
-     at = c(-0.5, 0, 0.5), 
-     labels = c(-0.5, 0, 0.5), col.axis = "red")
-
-# Initiate Plot 2
-plot(scores(hmwf.uni.R.res.rda, display = "wa"), xlim = c(-1, 1), ylim = c(-1, 1),
-     xlab = paste("dbRDA 1 (", rda.resR.explainvar1, "%)", sep = ""),
-     ylab = paste("dbRDA 2 (", rda.resR.explainvar2, "%)", sep = ""),
-     pch = 15, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
-
-# Add Axes
-axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
-axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1, at = c(-1, 0, 1, 2))
-abline(h = 0, v = 0, lty = 3)
-box(lwd = 2)
-
-# Add Points & Labels
-points(scores(hmwf.uni.R.res.rda, display = "wa"),
-       pch = 17, cex = 2, bg = "gray", col = designRES$lake.col)
-
-# Add Environmental Vectors
-vectors <- scores(hmwf.uni.R.res.rda, display = "bp")
-row.names(vectors) <- c("1", "2", "3", "4")
-arrows(0, 0, vectors[c(1:2),1] , vectors[c(1:2), 2], 
-       lwd = 2, lty = 1, length = 0.2, col = "red")
-text(vectors[c(1:2),1], vectors[c(1:2), 2], pos = c(1, 1), 
-     labels = row.names(vectors)[1:2], col = "red", cex = 0.8)
-axis(side = 3, lwd.ticks=2, cex.axis=  0.8, las = 1, col = "red", lwd = 2.2,
-     at = c(-0.5, 0, 0.5), 
-     labels = c(-0.5, 0, 0.5), col.axis = "red")
-axis(side = 4, lwd.ticks=2, cex.axis = 0.8, las = 1, col = "red", lwd = 2.2, 
-     at = c(-0.5, 0, 0.5), 
-     labels = c(-0.5, 0, 0.5), col.axis = "red")
-
-# Add Legends as Plot 3
-par(mar = c(4, 0, 1, 0) + 0.5)
-plot.new()
-legend("bottomleft", c("DNA", "RNA"), pch = c(16, 17), 
-       col = "gray", bty = "n", pt.cex = 1.5, cex = 1.5, 
-       y.intersp = 1.25, inset = c(0, 0, 0, 0.1))
-legend("topleft", levels(design$Lake), ncol = 1, pch = 16, col = 1:10, 
-       bty = "n", pt.cex = 1.5, cex = 1.5, y.intersp = 1.25, 
-       inset = c(0, 0, 0, 0.1))
-
-dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices
-par(opar)
-```
-
-```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="DOM and BCC dbRDA"}
-img <- readPNG("../figures/Figure4.png")
-grid.raster(img)
-```
-
-
-# Co-Occurance Analysis
-To attempt to understand the relationship between organic matter and community composition, we decided to use co-occurance analaysis to do pair-wise comparisions. 
-
-## Co-Orrurance Analysis Setup
+# Consumer Resource Specialization
 ```{r}
 # Subset OTUs for most dominant
-OTUsREL.dom <- OTUsREL[,which(colSums(as.matrix(OTUsREL)) > 0.05)]
+OTUsREL.dom <- OTUsREL[,which(colSums(as.matrix(OTUsREL)) > 0.01)]
 OTUsREL.dom2012 <- OTUsREL.dom[grep("2012_RNA", rownames(OTUsREL.dom)),]
 OTUsREL.dom2012 <- OTUsREL.dom2012[,order(colSums(as.matrix(OTUsREL.dom2012)), 
-                                          decreasing = T)[1:100]]
+                                          decreasing = T)[1:120]]
 
 # Subset Resources for most dominant
 resREL.dom <- resREL[,which(colSums(as.matrix(resREL)) > 0.022)]
 resREL.dom <- resREL.dom[,order(colSums(as.matrix(resREL.dom)), decreasing = T)[1:100]]
 
-# Mege OTUs and Resources
-ConRes1 <- cbind(as.matrix(OTUsREL.dom2012), as.matrix(resREL.dom))
-ConRes2 <- cbind(as.matrix(resREL.dom), as.matrix(OTUsREL.dom2012))
-ConRes <- rbind(ConRes1, ConRes2)
+# Subset Resoruce for most influential
+resREL.sc <- t(cor(pcoa.RES$points,resREL))
+resREL.sc <- as.matrix(resREL.sc)[,1:3]
+resREL.sc <- resREL.sc[abs(resREL.sc[,1]) > 0.7 | abs(resREL.sc[,2]) > 0.7, ]
+resREL.inf <- resREL[, which(colnames(resREL) %in% rownames(resREL.sc))]
+
+# 
+# # Mege OTUs and Resources Matrices
+# ConRes1 <- cbind(as.matrix(OTUsREL.dom2012), as.matrix(resREL.dom))
+# ConRes2 <- cbind(as.matrix(resREL.dom), as.matrix(OTUsREL.dom2012))
+# ConRes <- rbind(ConRes1, ConRes2)
 
 # Calculate 1 - Spearman Correlation Coefficients: Spearman Distance
-spear.bac <- spearman.dist(t(OTUsREL.dom2012), abs = FALSE)
-spear.res <- spearman.dist(t(as.matrix(resREL.dom)), abs = FALSE)
-spear.ConRes <- spearman.dist(t(as.matrix(ConRes)), abs = FALSE, diag = T, upper = T)
+# spear.ConRes <- spearman.dist(t(as.matrix(ConRes)), abs = FALSE, diag = T, upper = T)
 
-# Bacteria Interactions
-spear.bac2 <- spear.bac - 1
-spear.bac3 <- spear.bac2
-spear.bac3[which(spear.bac2 < 0.5 & spear.bac2 > -0.5)] <- 0
-
-# Summary
-str(spear.bac3)
-sum(spear.bac3 < -0.5)
-sum(spear.bac3 > 0.5)
-pos.cor.bac <- which(spear.bac3 > 0.5)
-neg.cor.bac <- which(spear.bac3 < -0.5)
-
-# Significance Test
-sig.test.neg <- list()
-sig.test.pos <- list()
-for (i in 1:1000) {
-  test <- randomizeMatrix(OTUsREL.dom2012, null.model = "independentswap")
-  spear.bac.test <- spearman.dist(t(test), abs = FALSE)
-  spear.bac2.test <- spear.bac.test - 1
-  spear.bac3.test <- spear.bac2.test
-  spear.bac3.test[which(spear.bac2.test < 0.5 & spear.bac2.test > -0.5)] <- 0
-  which(spear.bac3.test < -0.5)
-  which(spear.bac3.test > 0.5)
-  sig.test.neg[[i]] <- which(spear.bac3.test < -0.5)
-  sig.test.pos[[i]] <- which(spear.bac3.test > 0.5)
-}
-false.neg <- which((table(unlist(sig.test.neg)) / 1000) > 0.1)
-false.pos <- which((table(unlist(sig.test.pos)) / 1000) > 0.1)
-weak.neg <- which((table(unlist(sig.test.neg)) / 1000) > 0.05 & 
-                  (table(unlist(sig.test.neg)) / 1000) < 0.1)
-weak.pos <- which((table(unlist(sig.test.pos)) / 1000) > 0.05 & 
-                  (table(unlist(sig.test.pos)) / 1000) < 0.1)
-
-length(setdiff(neg.cor.bac, c(false.neg, weak.neg)))
-length(setdiff(pos.cor.bac, c(false.pos, weak.neg)))
-sum(length(setdiff(neg.cor.bac, c(false.neg, weak.neg))), 
-    length(setdiff(pos.cor.bac, c(false.pos, weak.neg)))) / 4950
-
-# Remove Non Significant Interactions
-spear.bac4 <- spear.bac3
-bad.ints.neg <- sort(false.neg)
-bad.ints.pos <- sort(false.pos)
-for (i in 1:length(bad.ints.neg)){
-  if (spear.bac4[bad.ints.neg[i]] < 0){
-  spear.bac4[bad.ints.neg[i]] <- 0
-  } else {}
-}
-for (i in 1:length(bad.ints.pos)){
-  if (spear.bac4[bad.ints.pos[i]] > 0){
-  spear.bac4[bad.ints.pos[i]] <- 0
-  } else {}
-}
-weak.ints.neg <- sort(weak.neg)
-weak.ints.pos <- sort(weak.pos)
-for (i in 1:length(weak.ints.neg)){
-  if (spear.bac4[weak.ints.neg[i]] < 0){
-  spear.bac4[weak.ints.neg[i]] <- -0.4
-  } else {}
-}
-for (i in 1:length(weak.ints.pos)){
-  if (spear.bac4[weak.ints.pos[i]] > 0){
-  spear.bac4[weak.ints.pos[i]] <- 0.4
-  } else {}
+# Define Function
+spear.matrix <- function(mat1 = "", mat2 = "", dim1 = "", dim2 = ""){
+  mat.temp <- matrix(NA, dim1, dim2)
+  row.names(mat.temp) <- colnames(mat1)
+  colnames(mat.temp) <- colnames(mat2)
+  mat.temp <- cor(mat1, mat2, method = "spearman")
+  return(mat.temp)
 }
 
+dim1 <- dim(OTUsREL.dom2012)[2]
+dim2 <- dim(resREL.inf)[2]
 
-# Resource Interactions
-spear.res2 <- spear.res - 1
-spear.res3 <- spear.res2
-spear.res3[which(spear.res2 < 0.5 & spear.res2 > -0.5)] <- 0
+# Calculate Consumer Resource Correlations
+spear.ConRes <- spear.matrix(mat1 = OTUsREL.dom2012, mat2 = resREL.inf, dim1, dim2)
 
-# Summary
-str(spear.res3)
-sum(spear.res3 < -0.5)
-sum(spear.res3 > 0.5)
-pos.cor.res <- which(spear.res3 > 0.5)
-neg.cor.res <- which(spear.res3 < -0.5)
-
-# Significance Test
-sig.test.neg <- list()
-sig.test.pos <- list()
-for (i in 1:1000) {
-  test <- randomizeMatrix(as.matrix(resREL.dom), null.model = "independentswap")
-  spear.res.test <- spearman.dist(t(test), abs = FALSE)
-  spear.res2.test <- spear.res.test - 1
-  spear.res3.test <- spear.res2.test
-  spear.res3.test[which(spear.res2.test < 0.5 & spear.res2.test > -0.5)] <- 0
-  which(spear.res3.test < -0.5)
-  which(spear.res3.test > 0.5)
-  sig.test.neg[[i]] <- which(spear.res3.test < -0.5)
-  sig.test.pos[[i]] <- which(spear.res3.test > 0.5)
-}
-false.neg <- which((table(unlist(sig.test.neg)) / 1000) > 0.1)
-false.pos <- which((table(unlist(sig.test.pos)) / 1000) > 0.1)
-weak.neg <- which((table(unlist(sig.test.neg)) / 1000) > 0.05 & 
-                  (table(unlist(sig.test.neg)) / 1000) < 0.1)
-weak.pos <- which((table(unlist(sig.test.pos)) / 1000) > 0.05 & 
-                  (table(unlist(sig.test.pos)) / 1000) < 0.1)
-
-length(setdiff(neg.cor.res, c(false.neg, weak.neg)))
-length(setdiff(pos.cor.res, c(false.pos, weak.neg)))
-sum(length(setdiff(neg.cor.res, c(false.neg, weak.neg))), 
-    length(setdiff(pos.cor.res, c(false.pos, weak.neg)))) / 4950
-
-# Remove Non Significant Interactions
-spear.res4 <- spear.res3
-bad.ints.neg <- sort(false.neg)
-bad.ints.pos <- sort(false.pos)
-for (i in 1:length(bad.ints.neg)){
-  if (spear.res4[bad.ints.neg[i]] < 0){
-  spear.res4[bad.ints.neg[i]] <- 0
-  } else {}
-}
-for (i in 1:length(bad.ints.pos)){
-  if (spear.res4[bad.ints.pos[i]] > 0){
-  spear.res4[bad.ints.pos[i]] <- 0
-  } else {}
-}
-weak.ints.neg <- sort(weak.neg)
-weak.ints.pos <- sort(weak.pos)
-for (i in 1:length(weak.ints.neg)){
-  if (spear.res4[weak.ints.neg[i]] < 0){
-  spear.res4[weak.ints.neg[i]] <- -0.4
-  } else {}
-}
-for (i in 1:length(weak.ints.pos)){
-  if (spear.res4[weak.ints.pos[i]] > 0){
-  spear.res4[weak.ints.pos[i]] <- 0.4
-  } else {}
-}
-
-# Bacteria / Resource Interactions
-spear.ConRes2 <- spear.ConRes - 1
+# Isolate Relavent Interactions
+spear.ConRes2 <- spear.ConRes
+spear.ConRes2[which(spear.ConRes < 0.7 & spear.ConRes > -0.7)] <- 0
 spear.ConRes3 <- spear.ConRes2
-spear.ConRes3[which(spear.ConRes2 < 0.5 & spear.ConRes2 > -0.5)] <- 0
-spear.ConRes4 <- as.matrix(spear.ConRes3)[1:100, 101:200]
 
 # Summary
-str(spear.ConRes4)
-sum(spear.ConRes4 < -0.5)
-sum(spear.ConRes4 > 0.5)
-pos.cor.ConRes <- which(spear.ConRes4 > 0.5)
-neg.cor.ConRes <- which(spear.ConRes4 < -0.5)
+str(spear.ConRes3)
+sum(spear.ConRes3 < -0.7)
+sum(spear.ConRes3 > 0.7)
+pos.cor.ConRes <- which(spear.ConRes3 > 0.7)
+neg.cor.ConRes <- which(spear.ConRes3 < -0.7)
 
 # Significance Test
-sig.test.neg <- list()
-sig.test.pos <- list()
+sig.test.neg <- vector("list", 1000)
+sig.test.pos <- vector("list", 1000)
 for (i in 1:1000) {
   # Two IndepSwap Runs
   testA <- randomizeMatrix(as.matrix(OTUsREL.dom2012), null.model = "independentswap")
-  testB <- randomizeMatrix(as.matrix(resREL.dom), null.model = "independentswap")
-  # Mege OTUs and Resources
-  ConRes1.test <- cbind(as.matrix(testA), as.matrix(testB))
-  ConRes2.test <- cbind(as.matrix(testB), as.matrix(testA))
-  ConRes.test <- rbind(ConRes1.test, ConRes2.test)
+  testB <- randomizeMatrix(as.matrix(resREL.inf), null.model = "independentswap")
   # Co-Occurence Analysis
-  spear.ConRes.test <- spearman.dist(t(ConRes.test), abs = FALSE)
-  spear.ConRes2.test <- spear.ConRes.test - 1
-  spear.ConRes3.test <- spear.ConRes2.test
-  spear.ConRes3.test[which(spear.ConRes2.test < 0.5 & spear.ConRes2.test > -0.5)] <- 0
-  spear.ConRes4.test <- as.matrix(spear.ConRes3.test)[1:100, 101:200]
-  which(spear.ConRes4.test < -0.5)
-  which(spear.ConRes4.test > 0.5)
-  sig.test.neg[[i]] <- which(spear.ConRes4.test < -0.5)
-  sig.test.pos[[i]] <- which(spear.ConRes4.test > 0.5)
+  spear.ConRes.test <- spear.matrix(testA, testB, dim1, dim2)
+  spear.ConRes2.test <- spear.ConRes.test
+  spear.ConRes2.test[which(spear.ConRes.test < 0.7 & spear.ConRes.test > -0.7)] <- 0
+  spear.ConRes3.test <- as.matrix(spear.ConRes2.test)
+  sig.test.neg[[i]] <- which(spear.ConRes3.test < -0.7)
+  sig.test.pos[[i]] <- which(spear.ConRes3.test > 0.7)
 }
-false.neg <- which((table(unlist(sig.test.neg)) / 1000) > 0.1)
-false.pos <- which((table(unlist(sig.test.pos)) / 1000) > 0.1)
+
+# False Negatives
+false.neg <- which((table(unlist(sig.test.neg)) / 1000) > 0.05)
+false.pos <- which((table(unlist(sig.test.pos)) / 1000) > 0.05)
 weak.neg <- which((table(unlist(sig.test.neg)) / 1000) > 0.05 & 
-                  (table(unlist(sig.test.neg)) / 1000) < 0.1)
+                    (table(unlist(sig.test.neg)) / 1000) < 0.1)
 weak.pos <- which((table(unlist(sig.test.pos)) / 1000) > 0.05 & 
-                  (table(unlist(sig.test.pos)) / 1000) < 0.1)
+                    (table(unlist(sig.test.pos)) / 1000) < 0.1)
 
 length(setdiff(neg.cor.ConRes, c(false.neg, weak.neg)))
 length(setdiff(pos.cor.ConRes, c(false.pos, weak.neg)))
 sum(length(setdiff(neg.cor.ConRes, c(false.neg, weak.neg))), 
     length(setdiff(pos.cor.ConRes, c(false.pos, weak.neg)))) / 10000
 
-# Remove Non Significant Interactions
-spear.ConRes5 <- spear.ConRes4
+# Remove Non Significant Interactions and Define Weak Interactions
+spear.ConRes4 <- spear.ConRes3
 bad.ints.neg <- sort(false.neg)
 bad.ints.pos <- sort(false.pos)
 for (i in 1:length(bad.ints.neg)){
-  if (spear.ConRes5[bad.ints.neg[i]] < 0){
-  spear.ConRes5[bad.ints.neg[i]] <- 0
+  if (spear.ConRes4[bad.ints.neg[i]] < 0){
+    spear.ConRes4[bad.ints.neg[i]] <- 0
   } else {}
 }
 for (i in 1:length(bad.ints.pos)){
-  if (spear.ConRes5[bad.ints.pos[i]] > 0){
-  spear.ConRes5[bad.ints.pos[i]] <- 0
+  if (spear.ConRes4[bad.ints.pos[i]] > 0){
+    spear.ConRes4[bad.ints.pos[i]] <- 0
   } else {}
 }
 weak.ints.neg <- sort(weak.neg)
 weak.ints.pos <- sort(weak.pos)
 for (i in 1:length(weak.ints.neg)){
-  if (spear.ConRes5[weak.ints.neg[i]] < 0){
-  spear.ConRes5[weak.ints.neg[i]] <- -0.4
+  if (spear.ConRes4[weak.ints.neg[i]] < 0){
+    spear.ConRes4[weak.ints.neg[i]] <- 0
   } else {}
 }
 for (i in 1:length(weak.ints.pos)){
-  if (spear.ConRes5[weak.ints.pos[i]] > 0){
-  spear.ConRes5[weak.ints.pos[i]] <- 0.4
+  if (spear.ConRes4[weak.ints.pos[i]] > 0){
+    spear.ConRes4[weak.ints.pos[i]] <- 0
   } else {}
 }
+
+# Remove Zero Sum Col and Rows
+spear.ConRes5 <- spear.ConRes4[which(apply(spear.ConRes4, 1, min) < 0), 
+                               which(apply(spear.ConRes4, 2, min) < 0)]
+
+# Summary
+str(spear.ConRes5)
+dim(spear.ConRes5)
+sum(spear.ConRes5 < -0.7)
+sum(spear.ConRes5 > 0.7)
+pos.cor.ConRes <- which(spear.ConRes5 > 0.7)
+neg.cor.ConRes <- which(spear.ConRes5 < -0.7)
 
 # Custome Color Palette
 jet.colors <- colorRampPalette(c("#00007F", "blue", "#007FFF", "cyan", 
                                  "#7FFF7F", "yellow", "#FF7F00", "red", 
                                  "#7F0000"))
 jet.colors.W <- colorRampPalette(c("#00007F", "blue", "#007FFF", "cyan", 
-                                 "white", "white", "white", "white",
-                                 "yellow", "#FF7F00", "red", "#7F0000"))
+                                   "white", "white", "white", "white",
+                                   "yellow", "#FF7F00", "red", "#7F0000"))
 ```
 
-## Co-Occurence Plots
+# Interaction Plot
 ```{r, results='hide'}
-png(filename="../figures/Figure5A.png",
-    width = 1800, height = 1800, res = 96*2, bg = "white")
-par(opar)
-bac.matrix <- as.matrix(spear.bac4)
-bac.matrix <- bac.matrix[which(rowSums(bac.matrix) != 0), 
-                        which(colSums(bac.matrix) != 0)]
-colnames(bac.matrix) <- gsub("Otu000", "OTU",colnames(bac.matrix))
-rownames(bac.matrix) <- gsub("Otu000", "OTU",rownames(bac.matrix))
-heatmap.2(bac.matrix, col = jet.colors.W, distfun = dist,
-          dendrogram = "both", na.rm = F, na.color = "white", trace = "none",
-          density.info = "none", key.xlab = "Correlation", key.title = "",
-          cexRow = 0.4, cexCol = 0.4, main = "Species-Species", lhei = c(1.5, 8))
-dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices
-par(opar)
-```
-
-```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="PCoA Supplement"}
-img <- readPNG("../figures/Figure5A.png")
-grid.raster(img)
-```
-
-
-```{r, results='hide'}
-png(filename="../figures/Figure5B.png",
-    width = 1800, height = 1800, res = 96*2, bg = "white")
-par(opar)
-res.matrix <- as.matrix(spear.res4)
-res.matrix <- res.matrix[which(rowSums(res.matrix) != 0), 
-                        which(colSums(res.matrix) != 0)]
-heatmap.2(res.matrix, col = jet.colors.W, distfun = dist,
-          dendrogram = "both", na.rm = F, na.color = "white", trace = "none",
-          density.info = "none", key.xlab = "Correlation", key.title = "",
-          cexRow = 0.4, cexCol = 0.4, main = "Resource-Resource", lhei = c(1.5, 8))
-dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices
-par(opar)
-```
-
-```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="PCoA Supplement"}
-img <- readPNG("../figures/Figure5B.png")
-grid.raster(img)
-```
-
-
-```{r, results='hide'}
-png(filename="../figures/Figure5C.png",
+png(filename="../figures/Figure3A.png",
     width = 1800, height = 1800, res = 96*2, bg = "white")
 par(opar)
 ConRes.matrix <- as.matrix(spear.ConRes5)
 rownames(ConRes.matrix) <- gsub("Otu000", "OTU",rownames(ConRes.matrix))
-heatmap.2(ConRes.matrix, col = jet.colors.W, distfun = dist,
-          dendrogram = "both", na.rm = F, na.color = "white", trace = "none",
-          density.info = "none", key.xlab = "Correlation", key.title = "",
-          cexCol = 0.4, cexRow = 0.4, main = "Species-Resource", lhei = c(2, 8))
+res.order <- order(colSums(ConRes.matrix <=  -0.5), decreasing = T)
+cons.order <- order(rowSums(ConRes.matrix <= -0.5), decreasing = T)
+heatmap.2(ConRes.matrix[cons.order, res.order], col = jet.colors.W, Rowv = F, Colv = F,
+          dendrogram = "none", na.rm = F, na.color = "white", trace = "none", 
+          density.info = "none", key.xlab = "Interaction", key.title = "", 
+          key.par=list(cex = 0.75, cex.lab = 1.5, mar = c(5.5, 2, 5.5, 2)), 
+          cexCol = 0.4, cexRow = 0.4, main = "", lhei = c(2, 8), margins = c(5, 5))
+mtext("Resource Availability", side = 3, line = 3, cex = 2, adj = 0.65)
+mtext("Available", side = 3, line = 2, cex = 1, adj = 0.2,  padj = 1)
+mtext("Restrictive", side = 3, line = 2, cex = 1, adj = 1, padj = 1)
+mtext("Consumer Strategy", side = 2, line = 0, cex = 2, adj = 0.5)
+mtext("Generalist", side = 2, line = -5, cex = 1, adj = 1, las = 1, at = 0.98)
+mtext("Specialist", side = 2, line = -5, cex = 1, adj = 1, las = 1, at = -0.16, xpd = T)
+arrows(x0 = 0.33, y0 = 1.075, x1 = 0.83, y1 = 1.075, length = 0.1, angle = 45, lwd = 3, xpd = T)
+arrows(x0 = 0.08, y0 = 0.92, x1 = 0.08, y1 = -0.1, length = 0.1, angle = 45, lwd = 3, xpd = T)
+
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices
-par(opar)
 ```
 
-```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="PCoA Supplement"}
-img <- readPNG("../figures/Figure5C.png")
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
+img <- readPNG("../figures/Figure3A.png")
 grid.raster(img)
 ```
 
+# Example Responders
+```{r, results='hide'}
+png(filename="../figures/Figure3B.png",
+    width = 1600, height = 900, res = 96*2)
+par(opar)
+# Example Taxa
+examples <- ConRes.matrix[cons.order, res.order]
+abundancesR <- OTUsREL.dom[design$Molecule == "RNA" & design$Year == "2012", ]
+colnames(abundancesR) <- gsub("Otu000", "OTU",colnames(abundancesR))
+rownames(abundancesR) <- gsub("2012_RNA", "", rownames(abundancesR))
+
+# Set Plot Parameters 
+layout(matrix(c(1:2), 1, 2))
+par(mar = c(1, 2, 0, 0) + 0.5, oma = c(4, 3, 0.5, 0.5))
+
+# Negative Example
+
+OTU.neg <- abundancesR[, which(colnames(abundancesR) == "OTU020")]
+DOM.neg <- resREL.dom[, which(colnames(resREL.dom) == "C94")]
+plot(OTU.neg * 100, DOM.neg * 1000, pch = 22, bg = "gray", cex = 2, lwd = 2,
+     xlim = c(0, 3.2), ylim = c(0.8, 4.3), las = 1, cex.lab = 1.5, 
+     xlab = "", ylab = "", axes = F)
+cor(OTU.neg, DOM.neg, method = "spearman")
+lines(stats::lowess(DOM.neg * 1000 ~ OTU.neg * 100), lwd = 4, lty = 2)
+axis(side=1, lwd.ticks = 2, tck=-0.04, labels = T, cex.axis = 0.8, las = 1)
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = T, cex.axis = 0.8, las = 1)
+axis(side=2, lwd.ticks = 2, tck=-0.04, labels = F, cex.axis = 1)
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1)
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1)
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
+box(lwd = 2)
+
+# Positive Example
+OTU.pos <- abundancesR[, which(colnames(abundancesR) == "OTU067")]
+DOM.pos <- resREL.inf[, which(colnames(resREL.inf) == "C789")]
+plot(OTU.pos * 100, DOM.pos * 1000, pch = 22, bg = "gray", cex = 2, lwd = 2,
+     xlim = c(0, 1.1), ylim = c(0, 1.15), las = 1, cex.lab = 1.5,
+     xlab = "", ylab = "", axes = F)
+cor(OTU.pos, DOM.pos, method = "spearman")
+lines(stats::lowess(DOM.pos * 1000 ~ OTU.pos * 100), lwd = 4, lty = 2)
+axis(side=1, lwd.ticks = 2, tck=-0.04, labels = T, cex.axis = 0.8, las = 1)
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = T, cex.axis = 0.8, las = 1)
+axis(side=2, lwd.ticks = 2, tck=-0.04, labels = F, cex.axis = 1)
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1)
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1)
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
+box(lwd = 2)
+
+mtext("Species Abundance (%)", 1, line = 2, cex = 1.25, outer = T)
+mtext("Resource Abundance (\u2030)", 2, line = 1, cex = 1.25, outer = T)
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices 
+```
+
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
+img <- readPNG("../figures/Figure3B.png")
+grid.raster(img)
+```
+
+
+# Generalist:Specialist Ratio
+```{r}
+specialists <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.7) <= 1]
+generalists <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.7) > 1]
+
+length(generalists)
+
+abundancesD <- OTUsREL.dom[design$Molecule == "DNA" & design$Year == "2012", ]
+colnames(abundancesD) <- gsub("Otu000", "OTU",colnames(abundancesD))
+rownames(abundancesD) <- gsub("2012_DNA", "", rownames(abundancesD))
+
+abundancesR <- OTUsREL.dom[design$Molecule == "RNA" & design$Year == "2012", ]
+colnames(abundancesR) <- gsub("Otu000", "OTU",colnames(abundancesR))
+rownames(abundancesR) <- gsub("2012_RNA", "", rownames(abundancesR))
+
+spec.matrix <- matrix(NA, nrow = 10, ncol = 6)
+colnames(spec.matrix) <- c("Total.Rel.Gen", "Active.Rel.Gen", "Total.Num.Gen", 
+                           "Total.Rel.Spe", "Active.Rel.Spe", "Total.Num.Spe")
+rownames(spec.matrix) <- rownames(abundancesD)
+
+for (i in 1:(dim(spec.matrix)[1])){
+  temp.gensT <- abundancesD[i, colnames(abundancesD) %in% generalists]
+  temp.gensA <- abundancesR[i, colnames(abundancesR) %in% generalists]
+  temp.specT <- abundancesD[i, colnames(abundancesD) %in% specialists]
+  temp.specA <- abundancesR[i, colnames(abundancesR) %in% specialists]
+  spec.matrix[i,1] <- round(sum(temp.gensT), 3)
+  spec.matrix[i,2] <- round(sum(temp.gensA), 3)
+  spec.matrix[i,3] <- sum(temp.gensT > 0)
+  spec.matrix[i,4] <- round(sum(temp.specT), 3)
+  spec.matrix[i,5] <- round(sum(temp.specA), 3)
+  spec.matrix[i,6] <- sum(temp.specA > 0)
+}
+```
+
+
+# Generalist:Specialists Ratio Plot
+```{r, results='hide'}
+png(filename="../figures/Figure4.png",
+    width = 1600, height =1000, res = 96*2)
+par(opar)
+layout(matrix(c(1,2), 2, 1), heights = c(6,1))
+par(mar = c(3, 5.5, 1, 1) + 0.5)
+
+labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
+         "Second\nPine","Upper\nPine")
+
+# Initiate Plot
+plot(spec.matrix[,1], type = "n", 
+     xlim = c(0.75, 10.25), ylim = c(0, 0.9),
+     xaxt="n", yaxt="n", xlab = "", ylab = "")
+points(seq(0.9, 9.9, 1), spec.matrix[,1], pch = 22, cex = 2,
+       bg = "cornflowerblue", lwd = 2)
+points(seq(1.1, 10.1, 1), spec.matrix[,2], pch = 24, cex = 2,
+       bg = "cornflowerblue", lwd = 2)
+points(seq(0.9, 9.9, 1), spec.matrix[,3], pch = 22, cex = 2,
+       bg = "wheat3", lwd = 2)
+points(seq(1.1, 10.1, 1), spec.matrix[,4], pch = 24, cex = 2,
+       bg = "wheat3", lwd = 2)
+
+abline(h = 0.5, lwd = 2, lty = 3)
+axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = 1:10)
+axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = 1:10)
+axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1.2, las = 1)
+axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = 1:10)
+axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = 1:10)
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1)
+axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
+
+mtext(side = 1, text = labs, line = 1, at = seq(1:10), padj = 0.5, cex = 0.8)
+mtext(side = 2, "Proportion of Community", line = 3.5, cex = 1.5)
+
+box(lwd = 2)
+
+# Add Legend
+par(mar = c(0, 0, 0, 0) )
+plot.new()
+
+legend(0, 1, legend = c("Generalists (Total)", "Generalists (Active)",
+                            "Specialists (Total)", "Specialists (Active)"),
+       pch = c(22, 24, 22, 24), pt.lwd = 2,
+       pt.bg = c("cornflowerblue", "cornflowerblue", "wheat3", "wheat3"),
+       bty = "n", pt.cex = 1, cex = 0.85, ncol = 4, y.intersp = 1.5)
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices 
+```
+
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
+img <- readPNG("../figures/Figure4.png")
+grid.raster(img)
+```
+
+
+
+
+# Consumer-Resource Feedbacks
 ## Graph Analysis Plot
 ```{r, results='hide'}
 # Reorganize Data
-str(spear.ConRes5)
-bac <- rep(rownames(spear.ConRes5), 100)
-res <- rep(colnames(spear.ConRes5), each = 100)
-int <- as.numeric(spear.ConRes5[, 1])
-for (i in 2:100){
-  int = append(int, as.numeric(spear.ConRes5[, i]))
+feedbacks <- ConRes.matrix
+str(feedbacks)
+bacs <- dim(feedbacks)[1]
+ress <- dim(feedbacks)[2]
+bac <- rep(rownames(feedbacks), ress)
+res <- rep(colnames(feedbacks), each = bacs)
+int <- as.numeric(feedbacks[, 1])
+for (i in 2:ress){
+  int = append(int, as.numeric(feedbacks[, i]))
 }
 bac2 <- bac 
 bac2 <- gsub("Otu000", "O", bac2)
-
-png(filename="../figures/Figure6.png",
-    width = 1800, height = 900, res = 96*2, bg = "white")
-par(opar)
-
-# Plot Settings
-layout(matrix(1:2, ncol = 2))
-par(mar = c(1, 1, 2, 1))
-
-# Positive Network
 graph.list.full <- data.frame(bac2, res, int)
-graph.list <- graph.list.full[graph.list.full$int > 0.6, ]
-hmwf.network <- graph.data.frame(graph.list, directed=F)
-hmwf.network <- simplify(hmwf.network)
-bets <- betweenness(hmwf.network)
-degs <- degree(hmwf.network)
-mean(bets[grep("O", names(bets))])
-mean(bets[grep("C", names(bets))])
-mean(degs[grep("O", names(degs))])
-mean(degs[grep("C", names(degs))])
-mean(table(t(graph.list[, 1]))[table(t(graph.list[, 1])) > 0 ])
-mean(table(t(graph.list[, 2]))[table(t(graph.list[, 2])) > 0 ])
-V(hmwf.network)$color <- V(hmwf.network)$name
-V(hmwf.network)$color[grepl("O",V(hmwf.network)$color)] <- "cornflowerblue"
-V(hmwf.network)$color[grepl("C",V(hmwf.network)$color)] <- "wheat3" 
-plot(hmwf.network, layout=layout.fruchterman.reingold, 
-     main='Production Network', vertex.label.dist=0,
-     vertex.label.color='black', vertex.label.cex=0.5)
 
-# Negative Network
-graph.list <- graph.list.full[graph.list.full$int > -0.999 & 
-                               graph.list.full$int < -0.7 , ]
-hmwf.network <- graph.data.frame(graph.list, directed=F)
-bets <- betweenness(hmwf.network)
-degs <- degree(hmwf.network)
-mean(bets[grep("O", names(bets))])
-mean(bets[grep("C", names(bets))])
-mean(degs[grep("O", names(degs))])
-mean(degs[grep("C", names(degs))])
-mean(table(t(graph.list[, 1]))[table(t(graph.list[, 1])) > 0 ])
-mean(table(t(graph.list[, 2]))[table(t(graph.list[, 2])) > 0 ])
-V(hmwf.network)$color <- V(hmwf.network)$name
-V(hmwf.network)$color[grepl("O",V(hmwf.network)$color)] <- "cornflowerblue"
-V(hmwf.network)$color[grepl("C",V(hmwf.network)$color)] <- "wheat3" 
-plot(hmwf.network, layout=layout.fruchterman.reingold, 
-     main='Consumption Network', vertex.label.dist=0,
-     vertex.label.color='black', vertex.label.cex=0.5)
-dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices
-par(opar)
-```
-
-```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Networks"}
-img <- readPNG("../figures/Figure6.png")
-grid.raster(img)
-```
-
-
-## Graph Analysis
-```{r}
-# Connections
-# Negative Network
-graph.list.neg <- graph.list.full[graph.list.full$int < -0.6 , ]
-graph.list.neg <- graph.list.full[graph.list.full$int > -0.999 & 
-                               graph.list.full$int < -0.7 , ]
-Ocons.neg <- length(table(graph.list.neg[, 1])[table(graph.list.neg[, 1]) > 2 ]) / 
-  length(unique(graph.list.neg[ ,1]))
-Ccons.neg <- length(table(graph.list.neg[, 2])[table(graph.list.neg[, 2]) > 2 ]) /
-length(unique(graph.list.neg[ ,2]))
-
-# Positive Network
-graph.list.pos <- graph.list.full[graph.list.full$int > 0.5 , ]
-graph.list.pos <- graph.list.full[graph.list.full$int > 0.6, ]
-Ocons.pos <- length(table(graph.list.pos[, 1])[table(graph.list.pos[, 1]) > 2 ]) / 
-  length(unique(graph.list.pos[ ,1]))
-Ccons.pos <- length(table(graph.list.pos[, 2])[table(graph.list.pos[, 2]) > 2 ]) / 
-  length(unique(graph.list.pos[ ,2]))
-
-Ocons.neg
-Ccons.neg
-Ocons.pos
-Ccons.pos
-
-mean(table(graph.list.pos[, 1]))
-mean(table(graph.list.pos[, 2]))
-mean(table(graph.list.neg[, 1]))
-mean(table(graph.list.neg[, 2]))
-
-
-# Connectedness
-Mode <- function(x) {
-  ux <- unique(x)
-  ux[which.max(tabulate(match(x, ux)))]
-}
-
-conn <- data.frame(bac2, res, int)
-connC <- conn[conn$int < -0.5, ]
-dim(connC)[1]
-length(connC$bac2)
-length(unique(connC$bac2))
-length(unique(connC$res))
-Cbac <- unique(connC$bac2)
-Cbac_c <- rep(NA, length(Cbac))
-for (i in 1:length(Cbac)){
-  Cbac_c[i] <- sum(connC$bac2 == Cbac[i])
-}
-mean(Cbac_c)
-sum(Cbac_c > 3)
-Cres <- unique(connC$res)
-Cres_c <- rep(NA, length(Cres))
-for (i in 1:length(Cres)){
-  Cres_c[i] <- sum(connC$res == Cres[i])
-}
-mean(Cres_c)
-sum(Cres_c > 3)
-connP <- conn[conn$int > 0.5, ]
-Pbac <- unique(connP$bac2)
-Pbac_c <- rep(NA, length(Pbac))
-for (i in 1:length(Pbac)){
-  Pbac_c[i] <- sum(connP$bac2 == Pbac[i])
-}
-mean(Pbac_c)
-Pres <- unique(connP$res)
-Pres_c <- rep(NA, length(Pres))
-for (i in 1:length(Pbac_c)){
-  Pres_c[i] <- sum(connP$res == Pres[i])
-}
-mean(Pres_c)
-
-graph.list.full <- data.frame(bac2, res, int)
-graph.list <- graph.list.full[graph.list.full$int > 0.5, ]
-hmwf.network <- graph.data.frame(graph.list, directed=F)
-hmwf.network <- simplify(hmwf.network)
-bets <- betweenness(hmwf.network)
-mean(bets[grep("O", names(bets))])
-mean(bets[grep("C", names(bets))])
-
-graph.list <- graph.list.full[graph.list.full$int < -0.5, ]
-hmwf.network <- graph.data.frame(graph.list, directed=F)
-hmwf.network <- simplify(hmwf.network)
-bets <- betweenness(hmwf.network)
-mean(bets[grep("O", names(bets))])
-mean(bets[grep("C", names(bets))])
-
-
-```
-
-
-# Microbial Function
-## Phosphorus Contributes to Activity
-```{r}
-resp <- read.delim("../data/Respiration.txt")
-chla <- read.delim("../data/ChlorophyllA.txt")
-eco <- data.frame(matrix(NA, 10, 4))
-row.names(eco) <- levels(resp$sample)
-colnames(eco) <- c("Chl11", "Chl12", "Resp11", "Resp12")
-for (i in row.names(eco)){
-  eco[i, 1] <- round(mean(chla[chla$Lake == i & chla$Year == "2011", 3]), 2)
-  eco[i, 2] <- round(mean(chla[chla$Lake == i & chla$Year == "2012", 3]), 2)
-  eco[i, 3] <- round(mean(resp[resp$sample == i & resp$year == "2011", 4]), 3)    
-  eco[i, 4] <- round(mean(resp[resp$sample == i & resp$year == "2012", 4]), 3)
-}
-
-```
-
-## Species Distributions and Generalism
-```{r}
-
-
-
-
-lake.yr <- paste(design$Lake[design$Molecule == "DNA"], 
-                 design$Year[design$Molecule == "DNA"], sep = "")
-
-total <- OTUs[design$Molecule == "DNA", ]
-row.names(total) <- lake.yr
-totalPA <- (total > 0) * 1
-
-active.rna <- OTUs[design$Molecule == "RNA", ]
-row.names(active.rna) <- lake.yr
-activePA <- (active.rna > 0) * 1
-active <- total * (activePA)
-row.names(active) <- lake.yr
-
-activePA.2 <- (active.rna > (total * 0.25)) * 1
-active.2 <- total * (activePA.2)
-row.names(active.2) <- lake.yr
-
-inactive <- total * (1 - activePA)
-inactivePA <- (inactive > 0) * 1
-
-
-# Inactive Taxa
-inactivePA <- totalPA - activePA
-inactive <- total * inactivePA
-
-per <- c(0.001, 0.005, 0.01, 0.02, 0.03, 0.04, 0.05, 0.075, 0.10)
-per.act <- matrix(NA, dim(total)[1], length(per))
-per.actT <- matrix(NA, dim(total)[1], length(per))
-colnames(per.act) <- per
-colnames(per.actT) <- per
-
-for (i in 1:length(per)){
-  activePA.temp <- (active.rna > (total * per[i])) * 1
-  active.temp <- total * activePA.temp
-  per.act[,i] <- rowSums(active.temp) / rowSums(total)
-  per.actT[,i] <- rowSums(activePA.temp) / rowSums(totalPA)
-}
-
-mean.per.act <- colMeans(per.act)
-se.per.act <- apply(per.act, 2, se)
-
-mean.per.actT <- colMeans(per.actT)
-se.per.actT <- apply(per.actT, 2, se)
-
-pro.act <- rowSums(active)/rowSums(total)
-
-rowSums(inactivePA)/rowSums(totalPA)
-rowSums(activePA)/rowSums(totalPA)
-
-plot(rowSums(activePA)/rowSums(totalPA), rowSums(inactivePA)/rowSums(totalPA))
-
-inactive <- total * inactivePA
-active.N <- total * (1-inactivePA)
-active.NPA <- (active.N > 0 ) * 1
-
-# plot(rowSums(active.NPA)/rowSums(totalPA), rowSums(inactivePA)/rowSums(totalPA))
-```
-
-
-## Phosphorus Contributes to Microbial Activity
-```{r, results= 'hide'}
-png(filename="../figures/Figure7.png",
-    width = 1800, height = 1000, res = 96*2, bg = "white")
-par(opar)
-layout(matrix(c(1:2), ncol = 2))
-par(mar=c(2, 5, 1, 1) + 0.1, oma = c(4, 1, 1, 1))
-
-# TP and Active Taxa
-plot(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts$TP[c(order(nuts$sample))]),
-     xlab = "",
-     ylab = "",
-     las = 1, cex.lab = 1.5, xlim = c(0, 1.8), ylim = c(0.25, 0.75), xaxt = "n",
-     pch = 15, col = "darkorchid4", cex = 1.5)
-axis(side = 1, lwd = 2, at = c(0, 0.7, 1.7), labels = c(0, 5, 50))
-axis(side = 2, lwd = 2, labels = F)
-axis(side = 3, lwd = 2, tck = 0.02, labels = F, at = c(0, 0.7, 1.7))
-axis(side = 4, lwd = 2, tck = 0.02, labels = F)
-axis(side = 1, lwd = 2, tck = -0.02, labels = F, at = c(0, 0.7, 1.7))
-axis(side = 2, lwd = 2, tck = -0.02, labels = F)
-axis(side = 3, lwd = 2, tck = -0.02, labels = F, at = c(0, 0.7, 1.7))
-axis(side = 4, lwd = 2, tck = -0.02, labels = F)
-mtext("Proportion of Active Taxa", side = 2, line = 3, cex = 1.5)
-box(lwd = 2)
-pcoa.res <- cmdscale(res.mat, eig = TRUE, k = 2) 
-
-phos <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts$TP[c(order(nuts$sample))]))
-nitro <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts$TN[c(order(nuts$sample))])) # NS
-carb <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ log10(nuts$DOC[c(order(nuts$sample))])) # NS
-res1 <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ rep(pcoa.res$points[, 1], each = 2)) # NS
-res2 <- lm(rowSums(active.NPA)/rowSums(totalPA) ~ rep(pcoa.res$points[, 2], each = 2)) # NS
-mod1 <- summary(phos)
-abline(phos, lty = 2, lwd = 4, col = "darkred")
-Rsq <- round(mod1$r.squared, 2)
-Pv <- round(mod1$coefficients[2,4], 3)
-text(1.5, 0.35, bquote(italic(R)^2 == .(format(Rsq, digits = 3))))
-text(1.5, 0.3, bquote(italic(p) == .(format(Pv, digits = 3))))
-
-# TP and Respiration
-bac.resp <- c(eco$Resp11, eco$Resp11)
-
-phos <- lm(log(bac.resp) ~ log10(nuts$TP)) 
-nitro <- lm(log(bac.resp) ~ log10(nuts$TN)) # NS
-carb <- lm(log(bac.resp) ~ log10(nuts$DOC)) # NS
-res1 <- lm(log(bac.resp) ~ rep(pcoa.res$points[, 1], 2)) # NS
-res2 <- lm(log(bac.resp) ~ rep(pcoa.res$points[, 2], 2)) # NS
-
-plot(log(bac.resp) ~ log10(nuts$TP),
-     xlab = "",
-     ylab = "",
-     las = 1, cex.lab = 1.5, xlim = c(0, 1.8), ylim = c(-0.3, 1.2), 
-     xaxt = "n", yaxt = "n", 
-     pch = 15, col = "darkorchid4", cex = 1.5)
-# points(x = log10(outl), y = log10(bac.resp)[17], pch = 15, col = "darkorchid4", cex = 1.5)
-axis(side = 1, lwd = 2, at = c(0, 0.7, 1.7), labels = c(0, 5, 50))
-axis(side = 2, lwd = 2, at = c(0, 0.77, 1.1), labels = c(0, 6, 12), las = 1)
-axis(side = 3, lwd = 2, tck = 0.02, labels = F, at = c(0, 0.7, 1.7))
-axis(side = 4, lwd = 2, at = c(0, 0.77, 1.1), tck = 0.02, labels = F)
-axis(side = 1, lwd = 2, tck = -0.02, labels = F, at = c(0, 0.7, 1.7))
-axis(side = 2, lwd = 2, at = c(0, 0.77, 1.1), tck = -0.02, labels = F)
-axis(side = 3, lwd = 2, tck = -0.02, labels = F, at = c(0, 0.7, 1.7))
-axis(side = 4, lwd = 2, at = c(0, 0.77, 1.1), tck = -0.02, labels = F)
-mtext(expression(paste("Respiration (", mu , "M C L"^-1, ")")), side = 2.5, line = 2, cex = 1.5)
-box(lwd = 2)
-
-mod1 <- summary(phos)
-abline(phos, lty = 2, lwd = 4, col = "darkred")
-Rsq <- round(mod1$r.squared, 2)
-Pv <- round(mod1$coefficients[2,4], 3)
-text(1.5, 1, bquote(italic(R)^2 == .(format(Rsq, digits = 3))))
-text(1.5, 0.85, bquote(italic(p) == .(format(Pv, digits = 3))))
-
-mtext(expression(paste("Total Phosphorus (", mu , "g L"^-1, ")")), side = 1, outer = T, line = 1.5, cex = 1.5)
-
-dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices
-par(opar)
-```
-
-```{r fig.width=8, fig.height=5,echo=FALSE,fig.cap="Phosphorus Contributes to Activity"}
-img <- readPNG("../figures/Figure7.png")
-grid.raster(img)
-```
-
-
-
-
-
-
-# Supplemental Figure for Active Percent Cutoff
-```{r, results= 'hide'}
-png(filename="../figures/Supp2.png",
-    width = 900, height = 900, res = 96*2, bg = "white")
-par(opar)
-par(mar = c(4.5,5,1,1) + 0.1)
-plot(mean.per.act ~ per, las = 1, type = "n",
-     ylim = c(0.875, 0.99), 
-     xaxt = "n", yaxt = "n", xlab = "", ylab = "")
-
-arrows(x0 = per, y0 = mean.per.act, y1 = mean.per.act + se.per.act, angle= 90, length = 0.1, lwd = 2)
-arrows(x0 = per, y0 = mean.per.act, y1 = mean.per.act - se.per.act, angle= 90, length = 0.1, lwd = 2)
-points(per, mean.per.act, pch = 15, col = "firebrick", cex = 1.25)
-
-axis(side=1, lwd.ticks = 2, tck=-0.02, labels = T, cex.axis = 1)
-axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
-axis(side=2, lwd.ticks = 2, labels = T, cex.axis = 1, las = 1, 
-     at = c(0.89, 0.92, 0.95, 0.98))
-axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0.89, 0.92, 0.95, 0.98))
-axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1)
-axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
-axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0.89, 0.92, 0.95, 0.98))
-axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0.89, 0.92, 0.95, 0.98))
-mtext(side = 2, "Percent Active", line = 3, cex = 1.5)
-mtext(side = 1, "Cutoff", line = 2.5, cex = 1.5)
-box(lwd = 2)
-dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices
-par(opar)
-```
-
-## Generalist Taxa
-```{r}
-# Generalists by Site
-gens <- data.frame(matrix(NA, 21, 3))
-colnames(gens) <- c("sites", "taxaA", "taxaT")
-gens$sites <- c(1:21)
-
-for (i in 1:21){
-  gens$taxaA[i] <- sum(colSums(activePA) == i)
-  gens$taxaT[i] <- sum(colSums(totalPA) == i)
-}
-
-# Generalists by Consumption
-consum <- as.matrix(spear.ConRes5) < -0.5
-gensC <- rowSums(abs(consum))
-chem.gen <- names(which(gensC > 0))
-
-activePA2 <- activePA[, colnames(activePA) %in% names(gensC)]
-totalPA2 <- totalPA[, colnames(totalPA) %in% names(gensC)]
-gensA <- colSums(activePA2)
-gensT <- colSums(totalPA2)
-gen.mod <- lm(gensC ~ gensT)
-plot(gensC ~ jitter(gensT))
-abline(gen.mod)
-
-spatial.gen <- names(which(colSums(activePA) >= 18))
-length(spatial.gen)
-length(intersect(chem.gen, spatial.gen))
-length(intersect(chem.gen, spatial.gen)) / length(spatial.gen)
-```
-
-## Generalists Plot
-```{r, results= 'hide'}
-png(filename="../figures/Supp3.png",
-    width = 900, height = 900, res = 96*2, bg = "white")
-par(opar)
-# Define Plot Parameters
-par(mar = c(5, 6, 1, 1) + 0.1)
-plot(log10(gens$taxaT) ~ gens$sites, 
-     yaxt = "n", xaxt = "n", ylab = "", xlab = "", las = 1,
-     pch = 16, col = "cornflowerblue", xlim = c(0, 22), ylim = c(1, 3.8))
-points(log10(gens$taxaA) ~ gens$sites, pch = 17, col = "darkolivegreen3")
-     
-mtext(side = 1, "Number of Sites", line = 3, cex = 1.5)
-mtext(side = 2, "Number of Taxa", line = 3.5, cex = 1.5)
-axis(side = 1, lwd = 2, labels = T)
-axis(side = 2, lwd = 2, at = c(1, 2, 3, 3.7), labels = c(10, 100, 1000, 5000), las = 1)
-axis(side = 3, lwd =2, tck = -0.02, labels = F)
-axis(side = 4, lwd =2, tck = -0.02, labels = F, at = c(1, 2, 3, 3.7))
-axis(side = 1, lwd =2, tck = 0.02, labels = F)
-axis(side = 2, lwd =2, tck = 0.02, labels = F, at = c(1, 2, 3, 3.7))
-axis(side = 3, lwd =2, tck = 0.02, labels = F)
-axis(side = 4, lwd =2, tck = 0.02, labels = F, at = c(1, 2, 3, 3.7))
-legend("topright", pch = c(16, 17), c("Total", "Active"), bty = "n", 
-       col = c("cornflowerblue", "darkolivegreen3"))
-box(lwd = 2)
-dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices
-par(opar)
-```
-
-```{r}
-
-```
-
-## Species Abundance Distribution for Active and Inactive
-```{r, results= 'hide'}
-png(filename="../figures/Supp4.png",
-    width = 1200, height = 1000, res = 96*2, bg = "white")
-par(opar)
-
-par(mar = c(4, 5, 1, 1) + 0.1)
-plot(sort(log10(colSums(active)), decreasing = T), col = "darkolivegreen3",
-     las = 1, xaxt="n", xlab = "", yaxt="n", ylab = "", xlim = c(0, 7000))
-points(sort(log10(colSums(inactive)), decreasing = T), col = "cornflowerblue")
-axis(side=1, lwd.ticks = 2, tck=-0.02, labels = T, cex.axis = 1, at = c(0, 1500, 3000, 4500, 6000))
-axis(side=1, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 1500, 3000, 4500, 6000))
-axis(side=2, lwd.ticks = 2, labels = c("10", "1000", "100000"), cex.axis = 1, las = 1, 
-     at = c(1, 3, 5))
-axis(side=2, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1, 3, 5))
-axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(0, 1500, 3000, 4500, 6000))
-axis(side=3, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(0, 1500, 3000, 4500, 6000))
-axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = c(1, 3, 5))
-axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1, at = c(1, 3, 5))
-mtext(side = 2, "Abundance", line = 3.5, cex = 1.5)
-mtext(side = 1, "Index", line = 2.5, cex = 1)
-legend("topright", c("Inactive", "Active"), fill = c("cornflowerblue", "darkolivegreen3"), bty = "n")
-box(lwd = 2)
-dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices
-par(opar)
-```
-
-
-
-## Hypothesis that resource diversity influences consumer diversity
-```{r]}
-alpha.div2012 <- alpha.div[alpha.div$Year == "2012" & alpha.div$Molecule == "RNA", c(1, 4:6)]
-rownames(alpha.div2012) <- alpha.div2012[, 1]
-alpha.div2012 <- alpha.div2012[, -1]
-rownames(res.div) == rownames(alpha.div2012)
-
-cor(res.div, alpha.div2012)
-
-rich.mod1 <- lm(alpha.div2012$S.obs ~ res.div$S.res)
-rich.mod2 <- lm(alpha.div2012$S.obs ~ res.div$res.simpsE)
-summary(rich.mod1)
-summary(rich.mod2)
-```
-
-```{r}
-plot((rowSums(active.NPA)/rowSums(totalPA))[seq(2, 20, by = 2)] ~ res.div$res.simpsE,
-     xlab = "Resource Evennes", ylab = "Proportion of Active Taxa")
-res.ev <- lm((rowSums(active.NPA)/rowSums(totalPA))[seq(2, 20, by = 2)] ~ res.div$res.simpsE)
-abline(res.ev)
-
-```
-
-
-## Between site comparisions of resources
-```{r}
-# Calculate Bray-Curtis 
-res.db <- vegdist(resREL, method = "bray")
-
-res.pcoa <- cmdscale(res.db, eig = TRUE, k = 3) 
-explainvar1 <- round(res.pcoa$eig[1] / sum(res.pcoa$eig), 3) * 100
-explainvar2 <- round(res.pcoa$eig[2] / sum(res.pcoa$eig), 3) * 100
-explainvar3 <- round(res.pcoa$eig[3] / sum(res.pcoa$eig), 3) * 100
-sum.eig <- sum(explainvar1, explainvar2, explainvar3)
-
-# Define Plot Parameters
-par(mar = c(5, 5, 1, 2) + 0.1)
-
-# Plot Eigenvalues
-plot(res.pcoa$eig, xlab = "PCoA Axis", ylab = "Eigenvalue", 
-     las = 1, cex.lab = 1.5, pch = 16)
-
-# Add Expectation based on Kaiser-Guttman criterion and Broken Stick Model
-abline(h = mean(res.pcoa$eig), lty = 2, lwd = 2, col = "blue")
-b.stick <- bstick(10, sum(res.pcoa$eig))
-lines(1:10, b.stick, type = "l", lty = 4, lwd = 2, col = "red")
-
-# Add Legend
-legend("topright", legend = c("Avg Eigenvalue", "Broken-Stick"), 
-       lty = c(2, 4), bty = "n", col = c("blue", "red"))
-```
-
-
-
-## Resource Explainations of Differences
-```{r}
-
-OTUsREL2012.DNA <- OTUsREL[which(design$Year == "2012" & design$Molecule == "DNA"), ]
-OTUsREL2012.DNA <- OTUsREL2012.DNA[ , colSums(OTUsREL2012.DNA > 0)]
-OTUsREL2012.RNA <- OTUsREL[which(design$Year == "2012" & design$Molecule == "DNA"), ]
-OTUsREL2012.RNA <- OTUsREL2012.RNA[ , colSums(OTUsREL2012.RNA > 0)]
-active.N2012 <- active.N[grep("2012", rownames(active.N)), ]
-rownames(OTUsREL2012.DNA) <- design$Lake[which(design$Year == "2012" & design$Molecule == "DNA")]
-rownames(OTUsREL2012.RNA) <- design$Lake[which(design$Year == "2012" & design$Molecule == "DNA")]
-rownames(active.N2012) <- design$Lake[which(design$Year == "2012" & design$Molecule == "DNA")]
-
-# DNA
-dbrda2012 <- capscale(OTUsREL2012.DNA ~ nuts2012$DOC + nuts2012$TN + nuts2012$TP, add =T, distance = "bray")
-anova(dbrda2012)
-RsquareAdj(dbrda2012)
-coef(dbrda2012)
-
-# RNA
-dbrda2012 <- capscale(OTUsREL2012.RNA ~ nuts2012$DOC + nuts2012$TN + nuts2012$TP, add =T, distance = "bray")
-anova(dbrda2012)
-RsquareAdj(dbrda2012)
-coef(dbrda2012)
-
-# Active
-dbrda2012 <- capscale(active.N2012 ~ nuts2012$DOC + nuts2012$TN + nuts2012$TP, add =T, distance = "bray")
-anova(dbrda2012)
-RsquareAdj(dbrda2012)
-coef(dbrda2012)
-
-# Resoruces
-chem.dbrda <- capscale(resREL ~ nuts2012$DOC + nuts2012$TN + nuts2012$TP, add =T, distance = "bray")
-anova(chem.dbrda)
-RsquareAdj(chem.dbrda)
-coef(chem.dbrda)
-
-anova.cca(chem.dbrda, step=1000)
-plot(chem.dbrda)
-lmod <- as.mlm(chem.dbrda)
-lmod
-summary(lmod)
-
-chem.dbrda <- capscale(resREL ~ log(nuts2012$DOC), add =T, distance = "bray")
-anova(chem.dbrda)
-RsquareAdj(chem.dbrda)
-coef(chem.dbrda)
-
-anova.cca(chem.dbrda, step=1000)
-plot(chem.dbrda)
-lmod <- as.mlm(chem.dbrda)
-lmod
-summary(lmod)
-
-
-
-require(cocorresp)
-#test1 <- coca(OTUsREL2012.RNA, resREL, n.axes = 4)
-
-# Variance Partitioning
-
-nuts3 <- cbind(scale(log(nuts2012$DOC)), scale(log1p(nuts2012$TP)))
-# nuts3 <- scale(log(nuts2012$DOC))
-rownames(nuts3) <- nuts2012$sample
-
-res.db <- vegdist(resREL, method = "altGower")
-res.pcoa <- cmdscale(res.db, eig = TRUE, k = 5) 
-
-OTUsREL.log2012 <- OTUsREL.log[design$Year == "2012" & design$Molecule == "RNA", ]
-OTUsREL2012 <- OTUsREL[design$Year == "2012" & design$Molecule == "RNA", ]
-spe.pcoa <- cmdscale(vegdist(OTUsREL2012, method="bray"), eig = TRUE, k = 5)
-
-
-# Active
-HMWFvarpart <- varpart(spe.pcoa$points[, 1:2], nuts3, res.pcoa$points[, 1:2])
-HMWFvarpart <- varpart(OTUsREL.log2012, nuts3, res.pcoa$points)
-
-
-
-
-anova.cca(rda(spe.pcoa$points, nuts3), step=1000) #[a+b]
-anova.cca(rda(spe.pcoa$points, res.pcoa$points), step=1000) #[b+c]
-anova.cca(rda(spe.pcoa$points, cbind(nuts3, res.pcoa$points)), step=1000) #[a+b+c]
-anova.cca(rda(spe.pcoa$points, res.pcoa$points, nuts3), step=1000) # [a]
-anova.cca(rda(spe.pcoa$points, nuts3, res.pcoa$points), step=1000) # [c]
-
-```
-
-
-
-# Microbial Functional Groups
-
-Define RDP microbial groups
-Test each along with resource differences
-Who are the generalist taxa (which are active everywhere)
-Are generalists more abundant when resource concentration is higher?
-
-# Can we group resources
-What are the similar groups of resources: cluster resources based on abundance
-Can we cluster based on chemical data?
-
-
-
-
-################################################################################
-# Supplemental
-################################################################################
-
-
-## Supplemental Analysis: Cluster Analysis
-
-```{r}
-
-res.dist <- vegdist(t(resREL), "bray")
-
-res2.pcoa <- cmdscale(res.dist, eig = TRUE, k = 3) 
-explainvar1 <- round(res2.pcoa$eig[1] / sum(res2.pcoa$eig), 3) * 100
-explainvar2 <- round(res2.pcoa$eig[2] / sum(res2.pcoa$eig), 3) * 100
-explainvar3 <- round(res2.pcoa$eig[3] / sum(res2.pcoa$eig), 3) * 100
-sum.eig <- sum(explainvar1, explainvar2, explainvar3)
-
-# Define Plot Parameters
-par(mar = c(5, 5, 1, 1) + 0.1)
-
-# Initiate Plot
-plot(res2.pcoa$points[ ,1], res2.pcoa$points[ ,2], ylim = c(-0.75, 0.75),
-     xlim = c(-0.75, 0.75), 
-     xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
-     ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
-     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
-
-# Add Axes
-axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
-axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
-abline(h = 0, v = 0, lty = 3)
-box(lwd = 2)
-
-# Add Points & Labels
-points(res2.pcoa$points[ ,1], res2.pcoa$points[ ,2],
-       pch = 19, cex = 3, bg = "gray", col = "gray")
-text(res2.pcoa$points[ ,1], res2.pcoa$points[ ,2], 
-     labels = row.names(res.pcoa$points))
-
-
-# Distances between molecules given sites
-
-# Calculate distances
-res.dist <- vegdist(resREL, method = "bray")
-res.dist2 <- vegdist(t(resREL), method = "bray")
-
-res.pcoa <- cmdscale(res.dist2, eig = TRUE, k = 3) 
-
-
-
-
-
-
-# Perform Cluster Analysis
-res.ward <- hclust(res.dist, method = "ward.D2")
-# Plot Cluster
-par(mar = c(1, 5, 2, 2) + 0.1)
-plot(res.ward, main = "Sites by Resource")
-
-bac.dist <- vegdist(OTUsREL[design$Year == "2012" & 
-                              design$Molecule == "DNA", ], method="bray")
-bac.ward <- hclust(bac.dist, method = "ward.D2")
-
-
-```
-
-
-
-
-
-
-## Supplemental Figure 5: Eigenvalue Analysis Plots
-```{r}
-png(filename="../figures/Supp5.png",
-    width = 1600, height = 1100, res = 96*2, bg = "white")
-# Define Plot Parameters
-layout(as.matrix(cbind(1,2)))
-par(mar = c(1, 1.5, 3, 1.5) + 0.1, oma = c(5, 5, 0.5, 0.5))
-
-# Bray Curtis Analysis
-# Plot Eigenvalues
-plot(pcoa.rel$eig, main = "Bray Curtis", 
-     #xlab = "PCoA Axis", ylab = "Eigenvalue", 
-     las = 1, cex.lab = 1.5, pch = 16)
-
-# Add Expectation based on Kaiser-Guttman criterion and Broken Stick Model
-abline(h = mean(pcoa.rel$eig), lty = 2, lwd = 2, col = "blue")
-b.stick <- bstick(42, sum(pcoa.rel$eig))
-lines(1:42, b.stick, type = "l", lty = 4, lwd = 2, col = "red")
-
-# Add Legend
-legend("topright", legend = c("Avg Eigenvalue", "Broken-Stick"), 
-       lty = c(2, 4), bty = "n", col = c("blue", "red"))
-
-axis(1, lwd=2, labels = F)
-axis(2, lwd=2, labels = F)
-#axis(3, lwd=2, tck=-0.01, labels = F)
-#axis(4, lwd=2, tck=-0.01, labels = F)
-axis(1, lwd=2, tck=0.01, labels = F)
-axis(2, lwd=2, tck=0.01, labels = F)
-#axis(3, lwd=2, tck=0.01, labels = F)
-#axis(4, lwd=2, tck=0.01, labels = F)
-
-box(lwd=2)
-
-# UniFrac Analysis
-# Plot Eigenvalues
-plot(pcoa.ufw$eig, main = "UniFrac", 
-     #xlab = "PCoA Axis", ylab = "Eigenvalue", 
-     las = 1, cex.lab = 1.5, pch = 16)
-
-# Add Expectation based on Kaiser-Guttman criterion and Broken Stick Model
-abline(h = mean(pcoa.ufw$eig), lty = 2, lwd = 2, col = "blue")
-b.stick <- bstick(42, sum(pcoa.ufw$eig))
-lines(1:42, b.stick, type = "l", lty = 4, lwd = 2, col = "red")
-
-# Add Legend
-legend("topright", legend = c("Avg Eigenvalue", "Broken-Stick"), 
-       lty = c(2, 4), bty = "n", col = c("blue", "red"))
-
-axis(1, lwd=2, labels = F)
-axis(2, lwd=2, labels = F)
-#axis(3, lwd=2, tck=-0.01, labels = F)
-#axis(4, lwd=2, tck=-0.01, labels = F)
-axis(1, lwd=2, tck=0.01, labels = F)
-axis(2, lwd=2, tck=0.01, labels = F)
-#axis(3, lwd=2, tck=0.01, labels = F)
-#axis(4, lwd=2, tck=0.01, labels = F)
-
-box(lwd=2)
-mtext("PCoA Axis", side = 1, outer = T, line = 2.5, cex = 2)
-mtext("Eigenvalue", side = 2, outer = T, line = 2.5, cex = 2)
-
-dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices
-par(opar)
-```
-
-## Supplemental Figure 6: PCoA w/ All Distances
-```{r, results='hide'}
-png(filename="../figures/Supp6.png",
+png(filename="../figures/Figure5.png",
     width = 1800, height = 1800, res = 96*2, bg = "white")
 par(opar)
 
-# Define Plot Parameters
-layout(matrix(c(7, 7, 7, 7,
-                1, 1, 2, 2,
-                1, 1, 2, 2,
-                3, 3, 4, 4,
-                3, 3, 4, 4,
-                5, 5, 6, 6,
-                5, 5, 6, 6), ncol = 4, byrow = T))
-par(mar = c(0, 0, 0, 0) + 0.5, oma = c(4, 4, 1, 1))
+# Plot Settings
+layout(matrix(1:4, ncol = 2, byrow = T))
+par(mar = c(1, 1, 2, 1), oma = c(1, 1, 2, 1))
 
-# Define Plot Symbols
-lake.pch <- rep(NA, length(design$Molecule))
-for (i in 1:length(design$Molecule)){
-if (design$Molecule[i] == "DNA"){
-    lake.pch[i] <- 16
-  }else{
-    lake.pch[i] <- 17
-  }}
+# Positive Network
+graph.list <- graph.list.full[graph.list.full$int > 0.86, ]
+hmwf.network <- graph.data.frame(graph.list, directed=F)
+hmwf.network <- simplify(hmwf.network)
+bets <- betweenness(hmwf.network)
+degs <- degree(hmwf.network)
+mean(bets[grep("O", names(bets))])
+mean(bets[grep("C", names(bets))])
+mean(degs[grep("O", names(degs))])
+mean(degs[grep("C", names(degs))])
+mean(table(t(graph.list[, 1]))[table(t(graph.list[, 1])) > 0 ])
+mean(table(t(graph.list[, 2]))[table(t(graph.list[, 2])) > 0 ])
+V(hmwf.network)$color <- V(hmwf.network)$name
+V(hmwf.network)$color[grepl("O",V(hmwf.network)$color)] <- "cornflowerblue"
+V(hmwf.network)$color[grepl("C",V(hmwf.network)$color)] <- "wheat3" 
+E(hmwf.network)$color <- "red"
 
-pcoa.plots <- list(pcoa.pa, pcoa.ufu, 
-                   pcoa.rel, pcoa.ufw, 
-                   pcoa.log, pcoa.ufwl)
-explainvar1 <- c(explainvar1.pa, explainvar1.rel, explainvar1.log, explainvar1.ufu,
-                 explainvar1.ufw, explainvar1.ufwl)
-explainvar2 <- c(explainvar2.pa, explainvar2.rel, explainvar2.log, explainvar2.ufu,
-                 explainvar2.ufw, explainvar2.ufwl)
+plot(hmwf.network, layout=layout.fruchterman.reingold, 
+     main='Production Network', vertex.label.dist=0,
+     vertex.label.color='black', vertex.label.cex=0.5,
+     edge.width = 4)
 
-xlabel <- c(F, F, F, F, T, T)
-ylabel <- c(T, F, T, F, T, F)
+# Negative Network
+graph.list <- graph.list.full[graph.list.full$int < -0.86, ]
+hmwf.network <- graph.data.frame(graph.list, directed=F)
+bets <- betweenness(hmwf.network)
+degs <- degree(hmwf.network)
+mean(bets[grep("O", names(bets))])
+mean(bets[grep("C", names(bets))])
+mean(degs[grep("O", names(degs))])
+mean(degs[grep("C", names(degs))])
+mean(table(t(graph.list[, 1]))[table(t(graph.list[, 1])) > 0 ])
+mean(table(t(graph.list[, 2]))[table(t(graph.list[, 2])) > 0 ])
+V(hmwf.network)$color <- V(hmwf.network)$name
+V(hmwf.network)$color[grepl("O",V(hmwf.network)$color)] <- "cornflowerblue"
+V(hmwf.network)$color[grepl("C",V(hmwf.network)$color)] <- "wheat3" 
+E(hmwf.network)$color <- "blue"
+plot(hmwf.network, layout=layout.fruchterman.reingold, 
+     main='Consumption Network', vertex.label.dist=0,
+     vertex.label.color='black', vertex.label.cex=0.5,
+     edge.width = 4)
 
-for (i in (1:length(pcoa.plots))){
-  # Initiate Plot
-  plot(pcoa.plots[[i]]$points[ ,1], pcoa.plots[[i]]$points[ ,2], 
-     ylim = c(-0.4, 0.4), xlim = c(-0.25, 0.55), 
-     #xlab = paste("PCoA 1 (", explainvar1[i], "%)", sep = ""),
-     #ylab = paste("PCoA 2 (", explainvar2[i], "%)", sep = ""),
-     xlab = "", ylab = "", xaxt = "n", yaxt = "n",
-     pch = lake.pch, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1, 
-     axes = FALSE)
+# Feedback Network
+graph.list <- graph.list.full[abs(graph.list.full$int) > 0.87, ]
 
-  # Add Axes
-  axis(side = 1, labels = xlabel[i], lwd.ticks = 2, cex.axis = 1, las = 1)
-  axis(side = 2, labels = ylabel[i], lwd.ticks = 2, cex.axis = 1, las = 1)
-  axis(side = 3, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
-  axis(side = 4, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
-  axis(side = 1, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
-  axis(side = 2, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
-  axis(side = 3, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
-  axis(side = 4, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
-  abline(h = 0, v = 0, lty = 3)
-  box(lwd = 2)
-  
-  # Add Percent Explained
-  
-  # Add Points & Labels
-  points(pcoa.plots[[i]]$points[ ,1], pcoa.plots[[i]]$points[ ,2], pch = lake.pch, 
-         cex = 2.5, bg = "gray", col = lake.col)
-  
-  # Add Molecule Hulls
-  ordihull(cbind(pcoa.plots[[i]]$points[ ,1], pcoa.plots[[i]]$points[ ,2]),
-           design$Molecule, lwd=2, draw = "polygon", col="gray80", border = "black", 
-           label=TRUE, cex=1, bty = 'n')
-  
-  # Add Y Axis Label  
-  if (i == 3){
-    mtext(side = 2, "PCoA 2", outer = F, line = 2.5)
-  }
-  
-  # Add Molecule Legend to Plot 6
-  if (i == 6){
-    legend("topright", c("DNA", "RNA"), pch = c(16, 17), 
-           col = "gray", bty = "n", pt.cex = 1.25)
-  }
-  
-}
-  
+graph.list <- graph.list.full[union(which(graph.list.full$bac2 %in% 
+                                      c("OTU006", "OTU020", 
+                                        "OTU001", "OTU166",
+                                        "OTU008")),
+                                    which(graph.list.full$res %in%
+                                      c("C551", "C3", "C86", "C652",
+                                        "C187"))), ] 
+
+graph.list <- graph.list[abs(graph.list$int) > 0.8 , ]
+
+hmwf.network <- graph.data.frame(graph.list, directed=F)
+bets <- betweenness(hmwf.network)
+degs <- degree(hmwf.network)
+mean(bets[grep("O", names(bets))])
+mean(bets[grep("C", names(bets))])
+mean(degs[grep("O", names(degs))])
+mean(degs[grep("C", names(degs))])
+mean(table(t(graph.list[, 1]))[table(t(graph.list[, 1])) > 0 ])
+mean(table(t(graph.list[, 2]))[table(t(graph.list[, 2])) > 0 ])
+
+
+# Plot
+V(hmwf.network)$color <- V(hmwf.network)$name
+V(hmwf.network)$color[grepl("O",V(hmwf.network)$color)] <- "cornflowerblue"
+V(hmwf.network)$color[grepl("C",V(hmwf.network)$color)] <- "wheat3" 
+
+E(hmwf.network)$color <- NA
+E(hmwf.network)$color[which(graph.list$int < 0)] <- "blue"
+E(hmwf.network)$color[which(graph.list$int > 0)] <- "red" 
+
+plot(hmwf.network, layout=layout.fruchterman.reingold, 
+     main='Feedback Network', vertex.label.dist=0,
+     vertex.label.color='black', vertex.label.cex=0.5,
+     edge.width = 4)
+
 plot.new()
-# par(mar = c(0, 0, 5, 0) + 0.5)
-legend("center", levels(design$Lake), ncol = 5, pch = 16, col = 1:10, bty = "n")
-mtext(side = 1, "PCoA 1", outer = T, line = 2)
+
+legend(0.1, 0.75, c("Bacteria", "DOM", "Neg. Interaction", "Pos. Interaction"), 
+       pch = c(21, 21, 0, 0), lty = c(0, 0, 1, 1), lwd = c(0, 0, 3, 3),
+       pt.bg = c("cornflowerblue", "wheat3", "white", "white"), 
+       col = c("black", "black", "blue", "red"), pt.lwd = 1, pt.cex = c(3, 3, 0.1, 0.1),
+       bty = "n", y.intersp = 2, xjust = 0, adj = c(0, 0.5))
+
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices
+```
+
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Networks"}
+img <- readPNG("../figures/Figure5.png")
+grid.raster(img)
+```
+
+
+# Supplemental
+## Supplemental Figure 1: System Map
+```{r fig.width=7, fig.height=3.5,echo=FALSE,fig.cap="Study System Map"}
+img <- readPNG("../figures/SuppFigure1.png")
+grid.raster(img)
+```
+
+## Supplemental Figure 2: Organic Matter Ordination Figure
+```{r, results='hide'}
+design2 <- design[design$Molecule == "DNA" & design$Year == "2012", ]
+# Custom palette
+palette(rainbow_hcl(10, c = 80, l = 60))
+lake.col <- rep(NA, length(unique(design2$Lake)))
+names(lake.col) <- unique(design2$Lake)
+lake.col <- as.numeric(factor(design2$Lake))
+
+png(filename="../figures/SuppFigure2.png",
+    width = 900, height = 900, res = 96*2, bg = "white")
 par(opar)
+
+# Define Plot Parameters
+layout(matrix(1))
+par(mar = c(5, 5, 1, 1) + 0.5)
+
+plot(pcoa.res$points[ ,1], pcoa.res$points[ ,2],
+     ylim = c(-0.25, 0.3), xlim = c(-0.25, 0.3),
+     xlab = paste("PCoA 1 (", explainvar1.res, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2.res, "%)", sep = ""),
+     #xlab = "", ylab = "",
+     xaxt = "n", yaxt = "n",
+     pch = 17, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1,
+     axes = FALSE)
+
+  # Add Axes
+  axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1, las = 1)
+  axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1, las = 1)
+  axis(side = 3, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
+  axis(side = 4, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
+  axis(side = 1, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.02)
+  axis(side = 2, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.02)
+  axis(side = 3, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.02)
+  axis(side = 4, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.02)
+  abline(h = 0, v = 0, lty = 3)
+  box(lwd = 2)
+
+# Add DOM Scores
+arrows(0, 0, dom.scores[, 1] * 0.2, dom.scores[, 2] * 0.2, col = "red", length = 0.1)
+text(dom.scores[, 1] * 0.2, dom.scores[, 2] * 0.2, rownames(dom.scores), col = "red", cex = 0.5)
+
+# Add Points & Labels
+points(pcoa.res$points[ ,1], pcoa.res$points[ ,2], pch = 15,
+       cex = 4, bg = "gray", col = lake.col)
+text(pcoa.res$points[ ,1], pcoa.res$points[ ,2], labels = row.names(pcoa.res$points))
+
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices
 ```
 
-## Table S1: Ecosystem and Microbial Processes
-```{r, results="asis"}
-
-addtorow <- list()
-addtorow$pos <- list(0, 0, 0)
-addtorow$command <- c(" & \\multicolumn{2}{c}{Chl $\\emph{a}$} & 
-                      \\multicolumn{2}{c}{Resp.} \\\\\n", 
-                      "Lake & \\multicolumn{2}{c}{($\\mu$g L$^{-1}$)} & 
-                      \\multicolumn{2}{c}{($\\mu$M Hr$^{-1}$)} \\\\\n",
-                      " & 2011 & 2012 & 2011 & 2012 \\\\\n")
-eco.tab <- xtable(eco)
-align(eco.tab) <- c("c ","r ", "r ", "r ", "r ")
-print(eco.tab, add.to.row = addtorow, include.colnames = FALSE, 
-      type= "latex", file="../tables/TableS1.tex", 
-      hline.after = c(-1, -1, 0, nrow(eco.tab)))
-print(eco.tab, add.to.row = addtorow, include.colnames = FALSE, 
-      comment = FALSE, hline.after = c(-1, -1, 0, nrow(eco.tab)))
+```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="PCoA Plot Resources"}
+img <- readPNG("../figures/SuppFigure2.png")
+grid.raster(img)
 ```
-
