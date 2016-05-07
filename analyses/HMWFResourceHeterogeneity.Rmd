@@ -695,8 +695,12 @@ str(spear.ConRes5)
 dim(spear.ConRes5)
 sum(spear.ConRes5 < -0.7)
 sum(spear.ConRes5 > 0.7)
+percent.total <- (sum(spear.ConRes5 < -0.7) + sum(spear.ConRes5 > 0.7)) / 
+  (dim(spear.ConRes5)[1] * dim(spear.ConRes5)[2])
 pos.cor.ConRes <- which(spear.ConRes5 > 0.7)
 neg.cor.ConRes <- which(spear.ConRes5 < -0.7)
+sum(colSums(spear.ConRes5) != 0) / 120
+sum(rowSums(spear.ConRes5) != 0) / 148
 
 # Custome Color Palette
 jet.colors <- colorRampPalette(c("#00007F", "blue", "#007FFF", "cyan", 
