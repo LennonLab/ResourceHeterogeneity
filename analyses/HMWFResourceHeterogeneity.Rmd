@@ -237,8 +237,12 @@ range(alpha.div$S.rar[alpha.div$Lake != "Pony" & alpha.div$Lake != "Lily"])
 ```{r}
 # Calculate Bray-Curtis 
 hmwf.bray.REL <- vegdist(OTUsREL, method = "bray")
+hmwf.bray.REL.D <- vegdist(OTUsREL[design$Molecule == "DNA", ], method = "bray")
+hmwf.bray.REL.R <- vegdist(OTUsREL[design$Molecule == "RNA", ], method = "bray")
 
 dis.mean <- mean(hmwf.bray.REL)
+dis.meanD <- mean(hmwf.bray.REL.D)
+dis.meanR <- mean(hmwf.bray.REL.R)
 
 adonis(hmwf.bray.REL ~ design$Molecule)
 
@@ -267,14 +271,30 @@ dat2R <- data.frame(dat1R[dat1R$Year == "2012", ], res.div[order(rownames(res.di
 dat2  <- data.frame(rbind(dat2D, dat2R))
 dat2  <- dat2[order(dat2$Lake), ]
 
+dat2D$PCA[dat2D$Lake == "Pony"] <- dat2D$PCA[dat2D$Lake == "Pony"] - 2
+dat2D$S.rar[dat2D$Lake == "Pony"] <- dat2D$S.rar[dat2D$Lake == "Pony"] - 800
+
+dat2R$PCA[dat2D$Lake == "Pony"] <- dat2R$PCA[dat2R$Lake == "Pony"] - 2
+dat2R$S.rar[dat2D$Lake == "Pony"] <- dat2R$S.rar[dat2R$Lake == "Pony"] - 800
+
 # Resource Concentration and Diversity (Total)
-mod1 <- lm(S.rar ~ PCA, data = dat1D[dat1D$Lake != "Pony", ])
-mod2 <- lm(simpsE ~ PCA, data = dat1D[dat1D$Lake != "Pony", ])
+mod1 <- lm(S.rar ~ PCA, data = dat2D[dat2D$Lake != "Pony" & dat2D$Lake != "Lily", ])
+mod2 <- lm(simpsE ~ PCA, data = dat2D[dat2D$Lake != "Pony", ])
 summary(mod1);summary(mod2)
 
 # Resource Heterogeneity and Divesity (Total)
 mod3 <- lm(S.rar ~ S.res, data = dat2D[dat2D$Lake != "Pony", ])
 mod4 <- lm(simpsE ~ S.res, data = dat2D[dat2D$Lake != "Pony", ])
+summary(mod3);summary(mod4)
+
+# Resource Concentration and Diversity (Active)
+mod1 <- lm(S.rar ~ PCA, data = dat2R[dat2R$Lake != "Pony" & dat2R$Lake != "Lily", ])
+mod2 <- lm(simpsE ~ PCA, data = dat2R[dat2R$Lake != "Pony", ])
+summary(mod1);summary(mod2)
+
+# Resource Heterogeneity and Divesity (Active)
+mod3 <- lm(S.rar ~ S.res, data = dat2R[dat2R$Lake != "Pony", ])
+mod4 <- lm(simpsE ~ S.res, data = dat2R[dat2R$Lake != "Pony", ])
 summary(mod3);summary(mod4)
 
 # Same Tests with Active Community
@@ -285,14 +305,17 @@ mod8 <- lm(simpsE ~ S.res, data = dat2R[dat2R$Lake != "Pony", ])
 summary(mod8)
 
 # Stats
+mod1.p <- round(summary(mod1)$coefficients[2,4], 3)
+mod2.p <- round(summary(mod2)$coefficients[2,4], 3)
+mod3.p <- round(summary(mod3)$coefficients[2,4], 3)
 mod4.p <- round(summary(mod4)$coefficients[2,4], 3)
 
 # Prediction Frames
 pred.frame1 <- data.frame(PCA = seq(0, 2.1, 0.1))
-pred.frame2 <- data.frame(S.res = seq(542,572,2))
+pred.frame2 <- data.frame(S.res = seq(526,572,2))
 
 # Correlation Test
-cor.test(~ S.res + PCA, data = dat2D[dat2D$Lake != "Pony", ])
+cor.test(~ S.res + PCA, data = dat2R[dat2D$Lake != "Pony", ])
 ```
 
 ## Structural Relationship Plots
@@ -316,17 +339,17 @@ layout(matrix(1:4, nrow = 2, byrow = F))
 par(mar = c(0.5, 1, 1, 1) + 0.1, oma = c(5, 5.5, 0, 0) + 0.1)
 
 # Resource Concentration vs Species Richness
-plot(dat1D$S.rar ~ dat1D$PCA, 
+plot(dat2R$S.rar ~ dat2R$PCA, 
      xlab = "", ylab = "", axes = F,
-     xlim = c(0, 2.1), ylim = c(400, 1200), las = 1,
+     xlim = c(0, 2.1), ylim = c(400, 1300), las = 1,
      pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
 add.hull(model = mod1, pred.frame = pred.frame1)
 matlines(pred.frame1, predict(mod1, interval = "c", newdata=pred.frame1),
          lty=c(2,3,3), lwd=c(4,2,2), col="black")
-points(dat1D$S.rar ~ dat1D$PCA,
+points(dat2R$S.rar ~ dat2R$PCA,
        pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
-legend("bottomright", legend = bquote(italic(N.S.)), 
-       bty = "n", cex = 1.5, inset = 0.01)
+legend("topleft", legend = bquote(italic(N.S.)), 
+       bty = "n", cex = 1.5, inset = c(-0.05, 0.01))
 # mtext("Nutrients", side = 1, line = 3, cex = 1.5)
 mtext("Species Richness", side = 2, line = 4, cex = 1.5)
 axis(1, lwd = 2, labels = F, at = c(0, 2))
@@ -339,22 +362,24 @@ axis(2, lwd = 2, tck = 0.02, labels = F)
 axis(3, lwd = 2, tck = 0.02, labels = F)
 axis(4, lwd = 2, tck = 0.02, labels = F)
 box(lwd = 2)
+text(1.7, 1245, "Pony")
+text(1.73, 1070, "Lily")
 
 # Resource Concentration vs Species Evenness
-plot(dat1D$simpsE ~ dat1D$PCA,
+plot(dat2R$simpsE ~ dat2R$PCA,
      xlab = "", ylab = "", axes = F,
      xlim = c(0, 2.1), ylim = c(0, 0.06), las = 1,
      pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
 add.hull(model = mod2, pred.frame = pred.frame1)
 matlines(pred.frame1, predict(mod2, interval = "c", newdata=pred.frame1),
          lty=c(2,3,3), lwd=c(4,2,2), col="black")
-points(dat1D$simpsE ~ dat1D$PCA,
+points(dat2R$simpsE ~ dat2R$PCA,
        pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
 legend("topright", legend = bquote(italic(N.S.)), 
        bty = "n", cex = 1.5, inset = 0.01)
 mtext("Resource Concentration", side = 1, line = 3.5, cex = 1.5)
 mtext("Species Evenness", side = 2, line = 4, cex = 1.5)
-axis(1, lwd = 2, labels = c("low", "high"), at = c(0, 2))
+axis(1, lwd = 2, labels = T, at = c(0, 0.5, 1, 1.5, 2))
 axis(1, lwd = 2, tck = -0.02, labels = F)
 axis(2, lwd = 2, labels = T, las = 1, at = c(seq(0, 0.06, 0.02)))
 axis(3, lwd = 2, tck = -0.02, labels = F)
@@ -366,58 +391,58 @@ axis(4, lwd = 2, tck = 0.02, labels = F, at = c(seq(0, 0.06, 0.02)))
 box(lwd = 2)
 
 # Resource Richness vs Species Richness
-plot(dat2D$S.rar ~ dat2D$S.res,
+plot(dat2R$S.rar ~ dat2R$S.res,
      xlab = "", ylab = "", type = "n", axes = F,
-     xlim = c(540, 572), ylim = c(400, 1200), las = 1,
+     xlim = c(525, 572), ylim = c(400, 1300), las = 1,
      pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
 add.hull(model = mod3, pred.frame = pred.frame2)
 matlines(pred.frame2, predict(mod3, interval = "c", newdata=pred.frame2),
          lty=c(2,3,3), lwd=c(4,2,2), col="black")
-points(dat2D$S.rar ~ dat2D$S.res,
+points(dat2R$S.rar ~ dat2R$S.res,
        pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
 legend("topright", legend = bquote(italic(N.S.)), 
        bty = "n", cex = 1.5, inset = 0.01)
 # mtext("DOM Richness", side = 1, line = 3, cex = 1.5)
 # mtext("Species Richness", side = 2, line = 3.5, cex = 1.5)
-axis(1, lwd = 2, labels = F, at = c(seq(540, 570, 10)))
+axis(1, lwd = 2, labels = F, at = c(seq(520, 570, 10)))
 axis(2, lwd = 2, labels = F, las = 1)
-axis(3, lwd = 2, tck = -0.02, labels = F, at = c(seq(540, 570, 10)))
+axis(3, lwd = 2, tck = -0.02, labels = F, at = c(seq(520, 570, 10)))
 axis(4, lwd = 2, tck = -0.02, labels = F)
-axis(1, lwd = 2, tck = 0.02, labels = F, at = c(seq(540, 570, 10)))
+axis(1, lwd = 2, tck = 0.02, labels = F, at = c(seq(520, 570, 10)))
 axis(2, lwd = 2, tck = 0.02, labels = F)
-axis(3, lwd = 2, tck = 0.02, labels = F, at = c(seq(540, 570, 10)))
+axis(3, lwd = 2, tck = 0.02, labels = F, at = c(seq(520, 570, 10)))
 axis(4, lwd = 2, tck = 0.02, labels = F)
 box(lwd = 2)
 
 # Resource Richness vs Species Eveness
-plot(dat2D$simpsE ~ dat2D$S.res,
+plot(dat2R$simpsE ~ dat2R$S.res,
      xlab = "", ylab = "", type = "n", axes = F,
-     xlim = c(540, 572), ylim = c(0, 0.06), las = 1,
+     xlim = c(525, 572), ylim = c(0, 0.06), las = 1,
      pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
 add.hull(model = mod4, pred.frame = pred.frame2)
 matlines(pred.frame2, predict(mod4, interval = "c", newdata=pred.frame2),
          lty=c(2,3,3), lwd=c(4,2,2), col="black")
-points(dat2D$simpsE ~ dat2D$S.res,
+points(dat2R$simpsE ~ dat2R$S.res,
        pch = 22, col = "black", bg = "gray", cex = 2, lwd = 2)
-legend("bottomright", legend = bquote(italic(P) == .(mod4.p)), 
-       bty = "n", cex = 1.5, inset = 0.01)
+legend("topleft", legend = bquote(italic(P) == .(mod4.p)), 
+       bty = "n", cex = 1.5, inset = c(-0.05, 0.01))
 mtext("DOM Richness", side = 1, line = 3.5, cex = 1.5)
 # mtext("Species Evenness", side = 2, line = 3.5, cex = 1.5)
-axis(1, lwd = 2, labels = T, las = 1, at = c(seq(540, 570, 10)))
+axis(1, lwd = 2, labels = T, las = 1, at = c(seq(520, 570, 10)))
 axis(2, lwd = 2, labels = F, las = 1, at = c(seq(0, 0.06, 0.02)))
-axis(3, lwd = 2, tck = -0.02, labels = F, at = c(seq(540, 570, 10)))
+axis(3, lwd = 2, tck = -0.02, labels = F, at = c(seq(520, 570, 10)))
 axis(4, lwd = 2, tck = -0.02, labels = F, at = c(seq(0, 0.06, 0.02)))
-axis(1, lwd = 2, tck = 0.02, labels = F, at = c(seq(540, 570, 10)))
+axis(1, lwd = 2, tck = 0.02, labels = F, at = c(seq(520, 570, 10)))
 axis(2, lwd = 2, tck = 0.02, labels = F, at = c(seq(0, 0.06, 0.02)))
-axis(3, lwd = 2, tck = 0.02, labels = F, at = c(seq(540, 570, 10)))
+axis(3, lwd = 2, tck = 0.02, labels = F, at = c(seq(520, 570, 10)))
 axis(4, lwd = 2, tck = 0.02, labels = F, at = c(seq(0, 0.06, 0.02)))
 box(lwd = 2)
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices
-```
+#```
 
-```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Diversity"}
+#```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Diversity"}
 img <- readPNG("../figures/Figure1.png")
 grid.raster(img)
 ```
@@ -465,6 +490,16 @@ dbRDA.D.2 <- capscale(Bray.REL.D.2 ~ dat2D.2$PCA, comm = OTUsREL.D.2, add = T)
 anova(dbRDA.D.2, permutations = how(nperm=9999))
 RsquareAdj(dbRDA.D.2)
 
+# With Pony and Lily Removed (RNA)
+dat2R.2 <- dat2R[dat2R$Lake != "Pony" & dat2R$Lake != "Lily", ]
+OTUsREL.R.2 <- OTUsREL[design$Molecule == "RNA" & design$Year == "2012" & 
+                         design$Lake != "Pony" & design$Lake != "Lily", ]
+Bray.REL.R.2 <- vegdist(OTUsREL.R.2, "bray")
+dbRDA.R.2 <- capscale(Bray.REL.R.2 ~ dat2R.2$PCA, comm = OTUsREL.R.2, add = T)
+
+anova(dbRDA.R.2, permutations = how(nperm=9999))
+RsquareAdj(dbRDA.R.2)
+
 # DOM Diversity dbRDA
 Bray.RES <- vegdist(decostand(resREL, "log"), "bray")
 pcoa.RES <- cmdscale(Bray.RES, k = 3, eig = T)
@@ -495,17 +530,34 @@ dbRDA.D.DOM.2 <- capscale(Bray.REL.D2012.2 ~ pcoa.RES2$points, add = T)
 anova(dbRDA.D.DOM.2, permutations = how(nperm=9999), model = "direct")
 RsquareAdj(dbRDA.D.DOM.2)
 
+# With Pony and Lily Removed (RNA)
+## Subset OTUs
+OTUsREL.R.2 <- OTUsREL[design$Molecule == "RNA" & design$Year == "2012" & 
+                       design$Lake != "Pony" & design$Lake != "Lily", ]
+rownames(OTUsREL.R.2) <- gsub("2012_RNA", "", rownames(OTUsREL.R.2))
+Bray.REL.R2012.2 <- vegdist(decostand(OTUsREL.R.2, "log"), method = "bray")
+
+## Subset Resources
+resREL2 <- resREL[rownames(resREL) != "Pony" & rownames(resREL) != "Lily", ]
+Bray.RES2 <- vegdist(resREL2, method = "bray")
+pcoa.RES2 <- cmdscale(Bray.RES2, eig = TRUE, k = 2)
+
+## dbRDA Analysis
+dbRDA.R.DOM.2 <- capscale(Bray.REL.R2012.2 ~ pcoa.RES2$points, add = T)
+anova(dbRDA.R.DOM.2, permutations = how(nperm=9999), model = "direct")
+RsquareAdj(dbRDA.R.DOM.2)
+
 # Resource Concentration/Composition Correlations
-cor.test(dat2D$PCA, pcoa.res$points[,1])
-cor.test(dat2D$PCA, pcoa.res$points[,2])
-cor.test(dat2D$PCA, pcoa.res$points[,3])
+cor.test(dat2R$PCA, pcoa.res$points[,1])
+cor.test(dat2R$PCA, pcoa.res$points[,2])
+cor.test(dat2R$PCA, pcoa.res$points[,3])
 ```
 
 # Bacterial PCoA Plot with Env Vectors
 ```{r, results='hide'}
-# PCoA of Total Community
-bray.BAC <- vegdist(decostand(OTUsREL, "log"), "bray")
-pcoa.BAC <- cmdscale(Bray.REL.D2012, k = 2, eig = T)
+# PCoA of Active Community
+# bray.BAC <- vegdist(decostand(OTUsREL, "log"), "bray")
+pcoa.BAC <- cmdscale(Bray.REL.R2012, k = 2, eig = T)
 explainvar1 <- round(pcoa.BAC$eig[1] / sum(pcoa.BAC$eig), 3) * 100
 explainvar2 <- round(pcoa.BAC$eig[2] / sum(pcoa.BAC$eig), 3) * 100
 
@@ -514,7 +566,7 @@ bray.RES <- vegdist(decostand(resREL, "log"), "bray")
 pcoa.RES <- cmdscale(bray.RES, k = 3, eig = T)
 
 # Resource Concentrations
-cons.RES <- dat2D$PCA
+cons.RES <- dat2R$PCA
 
 # Initial Plot as PNG
 png(filename="../figures/Figure2.png",
@@ -551,27 +603,30 @@ points(pcoa.BAC$points[ ,1], pcoa.BAC$points[ ,2], pch = 22,
 
 # Resource Concentration Vector
 res.con <- envfit(pcoa.BAC, cons.RES)
-con.arrows <- res.con[[1]]$arrows * 0.5
+con.arrows <- res.con[[1]]$arrows * 0.3
 arrows(0, 0, con.arrows[, 1], con.arrows[, 2], col = "red", length = 0.1, lwd = 2)
 text(con.arrows[, 1] * 1.2, con.arrows[, 2] * 1.2, "Conc.", col = "red", cex = 1)
 
 # DOM Composition Vectors
 res.com <- envfit(pcoa.BAC, pcoa.RES$points[,1:2])
 com.arrows <- res.com[[1]]$arrows * 0.3
-arrows(0, 0, com.arrows[1, 1], com.arrows[1, 2], col = "red", length = 0.1, lwd = 2)
-arrows(0, 0, com.arrows[2, 1], com.arrows[2, 2], col = "red", length = 0.1, lwd = 2)
-text(com.arrows[1, 1] * 1.15, com.arrows[1, 2] * 1.15, "DOM 1", col = "red", cex = 1)
-text(com.arrows[2, 1] * 1, com.arrows[2, 2] * 1.15, "DOM 2", col = "red", 
+arrows(0, 0, com.arrows[1, 1], com.arrows[1, 2], col = "blue", length = 0.1, lwd = 2)
+arrows(0, 0, com.arrows[2, 1], com.arrows[2, 2], col = "blue", length = 0.1, lwd = 2)
+text(com.arrows[1, 1] * 1.15, com.arrows[1, 2] * 1.15, "DOM 1", col = "blue", cex = 1)
+text(com.arrows[2, 1] * 1.22, com.arrows[2, 2] + 0.03, "DOM 2", col = "blue", 
      cex = 1, pos = 1)
 
-text(0.45, -0.1, "Pony", col = "black", cex = 0.8)
-text(0.55, 0.15, "Lily", col = "black", cex = 0.8)
+text(0.45, -0.05, "Pony", col = "black", cex = 0.8)
+text(0.58, 0.12, "Lily", col = "black", cex = 0.8)
+
+legend("bottomright", c("Resource Concentration Model", "Resource Composition Model"),
+       lwd = 2, col = c("red", "blue", "blue"), bty = "n")
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices
-```
+# ```
 
-```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Diversity"}
+# ```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Diversity"}
 img <- readPNG("../figures/Figure2.png")
 grid.raster(img)
 ```
@@ -579,19 +634,21 @@ grid.raster(img)
 # Consumer Resource Specialization
 ```{r}
 # Subset OTUs for most dominant
-OTUsREL.dom <- OTUsREL[,which(colSums(as.matrix(OTUsREL)) > 0.01)]
-OTUsREL.dom2012 <- OTUsREL.dom[grep("2012_RNA", rownames(OTUsREL.dom)),]
-OTUsREL.dom2012 <- OTUsREL.dom2012[,order(colSums(as.matrix(OTUsREL.dom2012)), 
-                                          decreasing = T)[1:120]]
+OTUsREL.2012 <- OTUsREL[grep("2012_RNA", rownames(OTUsREL)),]
+OTUsREL.dom2012 <- OTUsREL.2012[,which(colSums(as.matrix(OTUsREL.2012)) > 0.005)]
+
+#OTUsREL.dom2012 <- OTUsREL.dom2012[,order(colSums(as.matrix(OTUsREL.dom2012)),
+#                                         decreasing = T)[1:120]]
 
 # Subset Resources for most dominant
-resREL.dom <- resREL[,which(colSums(as.matrix(resREL)) > 0.022)]
+resREL.dom <- resREL[,which(colSums(as.matrix(resREL)) > 0.01)]
 resREL.dom <- resREL.dom[,order(colSums(as.matrix(resREL.dom)), decreasing = T)[1:100]]
 
 # Subset Resoruce for most influential
 resREL.sc <- t(cor(pcoa.RES$points,resREL))
 resREL.sc <- as.matrix(resREL.sc)[,1:3]
-resREL.sc <- resREL.sc[abs(resREL.sc[,1]) > 0.7 | abs(resREL.sc[,2]) > 0.7, ]
+resREL.sc <- resREL.sc[abs(resREL.sc[,1]) > 0.7 | abs(resREL.sc[,2]) > 0.7  | 
+                         abs(resREL.sc[,3]) > 0.7, ]
 resREL.inf <- resREL[, which(colnames(resREL) %in% rownames(resREL.sc))]
 
 # 
@@ -736,9 +793,9 @@ arrows(x0 = 0.08, y0 = 0.92, x1 = 0.08, y1 = -0.1, length = 0.1, angle = 45, lwd
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices
-```
+# ```
 
-```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
+# ```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
 img <- readPNG("../figures/Figure3A.png")
 grid.raster(img)
 ```
@@ -750,7 +807,7 @@ png(filename="../figures/Figure3B.png",
 par(opar)
 # Example Taxa
 examples <- ConRes.matrix[cons.order, res.order]
-abundancesR <- OTUsREL.dom[design$Molecule == "RNA" & design$Year == "2012", ]
+abundancesR <- OTUsREL.dom2012[design$Molecule == "RNA" & design$Year == "2012", ]
 colnames(abundancesR) <- gsub("Otu000", "OTU",colnames(abundancesR))
 rownames(abundancesR) <- gsub("2012_RNA", "", rownames(abundancesR))
 
@@ -800,9 +857,9 @@ mtext("Resource Abundance (\u2030)", 2, line = 1, cex = 1.25, outer = T)
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices 
-```
+#```
 
-```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
+#```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
 img <- readPNG("../figures/Figure3B.png")
 grid.raster(img)
 ```
@@ -810,16 +867,16 @@ grid.raster(img)
 
 # Generalist:Specialist Ratio
 ```{r}
-specialists <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.7) <= 1]
-generalists <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.7) > 1]
+specialists <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.7) <= 2]
+generalists <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.7) > 2]
 
 length(generalists)
 
-abundancesD <- OTUsREL.dom[design$Molecule == "DNA" & design$Year == "2012", ]
+abundancesD <- OTUsREL[design$Molecule == "DNA" & design$Year == "2012", ]
 colnames(abundancesD) <- gsub("Otu000", "OTU",colnames(abundancesD))
 rownames(abundancesD) <- gsub("2012_DNA", "", rownames(abundancesD))
 
-abundancesR <- OTUsREL.dom[design$Molecule == "RNA" & design$Year == "2012", ]
+abundancesR <- OTUsREL[design$Molecule == "RNA" & design$Year == "2012", ]
 colnames(abundancesR) <- gsub("Otu000", "OTU",colnames(abundancesR))
 rownames(abundancesR) <- gsub("2012_RNA", "", rownames(abundancesR))
 
@@ -840,11 +897,11 @@ for (i in 1:(dim(spec.matrix)[1])){
   spec.matrix[i,5] <- round(sum(temp.specA), 3)
   spec.matrix[i,6] <- sum(temp.specA > 0)
 }
-```
+#```
 
 
 # Generalist:Specialists Ratio Plot
-```{r, results='hide'}
+#```{r, results='hide'}
 png(filename="../figures/Figure4.png",
     width = 1600, height =1000, res = 96*2)
 par(opar)
@@ -854,6 +911,7 @@ par(mar = c(3, 5.5, 1, 1) + 0.5)
 labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
          "Second\nPine","Upper\nPine")
 
+
 # Initiate Plot
 plot(spec.matrix[,1], type = "n", 
      xlim = c(0.75, 10.25), ylim = c(0, 0.9),
@@ -862,9 +920,9 @@ points(seq(0.9, 9.9, 1), spec.matrix[,1], pch = 22, cex = 2,
        bg = "cornflowerblue", lwd = 2)
 points(seq(1.1, 10.1, 1), spec.matrix[,2], pch = 24, cex = 2,
        bg = "cornflowerblue", lwd = 2)
-points(seq(0.9, 9.9, 1), spec.matrix[,3], pch = 22, cex = 2,
+points(seq(0.9, 9.9, 1), spec.matrix[,4], pch = 22, cex = 2,
        bg = "wheat3", lwd = 2)
-points(seq(1.1, 10.1, 1), spec.matrix[,4], pch = 24, cex = 2,
+points(seq(1.1, 10.1, 1), spec.matrix[,5], pch = 24, cex = 2,
        bg = "wheat3", lwd = 2)
 
 abline(h = 0.5, lwd = 2, lty = 3)
@@ -886,7 +944,7 @@ box(lwd = 2)
 par(mar = c(0, 0, 0, 0) )
 plot.new()
 
-legend(0, 1, legend = c("Generalists (Total)", "Generalists (Active)",
+legend(0.175, 1, legend = c("Generalists (Total)", "Generalists (Active)",
                             "Specialists (Total)", "Specialists (Active)"),
        pch = c(22, 24, 22, 24), pt.lwd = 2,
        pt.bg = c("cornflowerblue", "cornflowerblue", "wheat3", "wheat3"),
@@ -894,14 +952,80 @@ legend(0, 1, legend = c("Generalists (Total)", "Generalists (Active)",
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices 
-```
+#```
 
-```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
+#```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
 img <- readPNG("../figures/Figure4.png")
 grid.raster(img)
 ```
 
+# Generalist:Specialists Ratio Plot: Sensitivity
+```{r, results='hide'}
+png(filename="../figures/Figure4B.png",
+    width = 1200, height =800, res = 96*2)
+par(opar)
+generalism <- matrix(NA, 10, 10)
+colnames(generalism) <- c(1:10)
+rownames(generalism) <- rownames(abundancesD)
+for (j in c(1:9)){
+  for (i in 1:dim(generalism)[1]){
+    generalism.temp <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.7) <= j]
+    generalism.temp.2 <- abundancesD[i, colnames(abundancesD) %in% generalism.temp]
+    generalism[i,j] <- round(sum(generalism.temp.2), 3)
+  }
+}
+for (i in 1:dim(generalism)[1]){
+  generalism.temp <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.7) <= 30]
+  generalism.temp.2 <- abundancesD[i, colnames(abundancesD) %in% generalism.temp]
+  generalism[i,10] <- round(sum(generalism.temp.2), 3)
+}
 
+par(mar = c(4, 5, 1, 1) + 0.5)
+plot(generalism[1,], type = 'n', las = 1, axes = F,
+     xlim = c(0.5,10.5), ylim = c(0,0.9),
+     ylab = "",
+     xlab = "")
+for (i in 1:10){
+  points(generalism[i, ], pch = 22, bg = "gray", lwd = 2, cex = 1.5)
+}
+
+axis(side=1, lwd.ticks = 2, tck=-0.04, labels = c("2", "4", "6", "8", "10+"), 
+     at = c(seq(2,10,2)), cex.axis = 1, las = 1)
+axis(side=2, lwd.ticks = 2, tck=-0.04, labels = T, cex.axis = 1, las = 1)
+
+axis(side=1, lwd.ticks = 2, tck= 0.01, labels = F, cex.axis = 1)
+axis(side=2, lwd.ticks = 2, tck= 0.01, labels = F, cex.axis = 1)
+axis(side=3, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1)
+axis(side=3, lwd.ticks = 2, tck= 0.01, labels = F, cex.axis = 1)
+axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1)
+axis(side=4, lwd.ticks = 2, tck= 0.01, labels = F, cex.axis = 1)
+
+mtext(side = 1, "Number of Resources", cex = 1.5, line = 2.5)
+mtext(side = 2, "Cumulative Proportion", cex = 1.5, line = 3)
+
+box(lwd = 2)
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices 
+#```
+
+#```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Generalists"}
+img <- readPNG("../figures/Figure4B.png")
+grid.raster(img)
+```
+
+# Who are the Generalists and Specialists
+```{r}
+length(specialists)
+length(generalists)
+
+generalists
+OTU.tax[,1] <- gsub("Otu000", "OTU",OTU.tax[,1])
+Gen.Tax <- OTU.tax[which(OTU.tax[,1] %in% generalists),]
+Spe.Tax <- OTU.tax[which(OTU.tax[,1] %in% specialists),]
+
+
+```
 
 
 # Consumer-Resource Feedbacks
