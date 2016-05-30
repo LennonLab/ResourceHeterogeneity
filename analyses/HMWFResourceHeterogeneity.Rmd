@@ -289,11 +289,11 @@ summary(mod3);summary(mod4)
 
 # Resource Concentration and Diversity (Active)
 mod1 <- lm(S.rar ~ PCA, data = dat2R[dat2R$Lake != "Pony" & dat2R$Lake != "Lily", ])
-mod2 <- lm(simpsE ~ PCA, data = dat2R[dat2R$Lake != "Pony", ])
+mod2 <- lm(simpsE ~ PCA, data = dat2R[dat2R$Lake != "Pony" & dat2R$Lake != "Lily", ])
 summary(mod1);summary(mod2)
 
 # Resource Heterogeneity and Divesity (Active)
-mod3 <- lm(S.rar ~ S.res, data = dat2R[dat2R$Lake != "Pony", ])
+mod3 <- lm(S.rar ~ S.res, data = dat2R[dat2R$Lake != "Pony" & dat2R$Lake != "Lily", ])
 mod4 <- lm(simpsE ~ S.res, data = dat2R[dat2R$Lake != "Pony", ])
 summary(mod3);summary(mod4)
 
@@ -315,7 +315,7 @@ pred.frame1 <- data.frame(PCA = seq(0, 2.1, 0.1))
 pred.frame2 <- data.frame(S.res = seq(526,572,2))
 
 # Correlation Test
-cor.test(~ S.res + PCA, data = dat2R[dat2D$Lake != "Pony", ])
+cor.test(~ S.res + PCA, data = dat2R[dat2R$Lake != "Pony", ])
 ```
 
 ## Structural Relationship Plots
@@ -539,11 +539,15 @@ Bray.REL.R2012.2 <- vegdist(decostand(OTUsREL.R.2, "log"), method = "bray")
 
 ## Subset Resources
 resREL2 <- resREL[rownames(resREL) != "Pony" & rownames(resREL) != "Lily", ]
-Bray.RES2 <- vegdist(resREL2, method = "bray")
-pcoa.RES2 <- cmdscale(Bray.RES2, eig = TRUE, k = 2)
+Bray.RES2 <- vegdist(decostand(resREL2, "log"), method = "bray") 
+pcoa.RES2 <- cmdscale(Bray.RES2, eig = TRUE, k = 2) 
 
 ## dbRDA Analysis
-dbRDA.R.DOM.2 <- capscale(Bray.REL.R2012.2 ~ pcoa.RES2$points, add = T)
+dbRDA.R.DOM.2 <- capscale(Bray.REL.R2012.2 ~ pcoa.RES2$points, add = T) 
+anova(dbRDA.R.DOM.2, permutations = how(nperm=9999), model = "direct")
+RsquareAdj(dbRDA.R.DOM.2)
+
+dbRDA.R.DOM.2 <- capscale(Bray.REL.R2012.2 ~ pcoa.RES2$points[,2], add = T)
 anova(dbRDA.R.DOM.2, permutations = how(nperm=9999), model = "direct")
 RsquareAdj(dbRDA.R.DOM.2)
 
