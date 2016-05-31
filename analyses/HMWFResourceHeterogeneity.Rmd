@@ -639,7 +639,7 @@ grid.raster(img)
 ```{r}
 # Subset OTUs for most dominant
 OTUsREL.2012 <- OTUsREL[grep("2012_RNA", rownames(OTUsREL)),]
-OTUsREL.dom2012 <- OTUsREL.2012[,which(colSums(as.matrix(OTUsREL.2012)) > 0.005)]
+OTUsREL.dom2012 <- OTUsREL.2012[,which(colSums(as.matrix(OTUsREL.2012)) > 0.01)]
 
 #OTUsREL.dom2012 <- OTUsREL.dom2012[,order(colSums(as.matrix(OTUsREL.dom2012)),
 #                                         decreasing = T)[1:120]]
@@ -760,8 +760,10 @@ percent.total <- (sum(spear.ConRes5 < -0.7) + sum(spear.ConRes5 > 0.7)) /
   (dim(spear.ConRes5)[1] * dim(spear.ConRes5)[2])
 pos.cor.ConRes <- which(spear.ConRes5 > 0.7)
 neg.cor.ConRes <- which(spear.ConRes5 < -0.7)
-sum(colSums(spear.ConRes5) != 0) / 120
-sum(rowSums(spear.ConRes5) != 0) / 148
+sum(colSums(spear.ConRes5) != 0) / dim(spear.ConRes)[2]
+sum(rowSums(spear.ConRes5) != 0) / dim(spear.ConRes)[1]
+sum(pos.cor.ConRes != 0)
+sum(neg.cor.ConRes != 0)
 
 # Custome Color Palette
 jet.colors <- colorRampPalette(c("#00007F", "blue", "#007FFF", "cyan", 
@@ -786,14 +788,14 @@ heatmap.2(ConRes.matrix[cons.order, res.order], col = jet.colors.W, Rowv = F, Co
           density.info = "none", key.xlab = "Interaction", key.title = "", 
           key.par=list(cex = 0.75, cex.lab = 1.5, mar = c(5.5, 2, 5.5, 2)), 
           cexCol = 0.4, cexRow = 0.4, main = "", lhei = c(2, 8), margins = c(5, 5))
-mtext("Resource Availability", side = 3, line = 3, cex = 2, adj = 0.65)
-mtext("Available", side = 3, line = 2, cex = 1, adj = 0.2,  padj = 1)
-mtext("Restrictive", side = 3, line = 2, cex = 1, adj = 1, padj = 1)
-mtext("Consumer Strategy", side = 2, line = 0, cex = 2, adj = 0.5)
-mtext("Generalist", side = 2, line = -5, cex = 1, adj = 1, las = 1, at = 0.98)
-mtext("Specialist", side = 2, line = -5, cex = 1, adj = 1, las = 1, at = -0.16, xpd = T)
-arrows(x0 = 0.33, y0 = 1.075, x1 = 0.83, y1 = 1.075, length = 0.1, angle = 45, lwd = 3, xpd = T)
-arrows(x0 = 0.08, y0 = 0.92, x1 = 0.08, y1 = -0.1, length = 0.1, angle = 45, lwd = 3, xpd = T)
+mtext("Resource Availability", side = 3, line = 2, cex = 2, adj = 0.60)
+mtext("Available", side = 3, line = 0.8, cex = 1, adj = 0.2,  padj = 1)
+mtext("Restrictive", side = 3, line = 0.8, cex = 1, adj = 1, padj = 1)
+mtext("Consumer Strategy", side = 2, line = -1, cex = 2, adj = 0.325)
+mtext("Generalist", side = 2, line = -5, cex = 1, adj = 1, las = 1, at = 0.90)
+mtext("Specialist", side = 2, line = -5, cex = 1, adj = 1, las = 1, at = -0.12, xpd = T)
+arrows(x0 = 0.33, y0 = 1.015, x1 = 0.83, y1 = 1.015, length = 0.1, angle = 45, lwd = 3, xpd = T)
+arrows(x0 = 0.1, y0 = 0.85, x1 = 0.1, y1 = -0.08, length = 0.1, angle = 45, lwd = 3, xpd = T)
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices
@@ -872,7 +874,7 @@ grid.raster(img)
 # Generalist:Specialist Ratio
 ```{r}
 specialists <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.7) <= 2]
-generalists <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.7) > 2]
+generalists <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.7) >= 3]
 
 length(generalists)
 
@@ -907,9 +909,9 @@ for (i in 1:(dim(spec.matrix)[1])){
 # Generalist:Specialists Ratio Plot
 #```{r, results='hide'}
 png(filename="../figures/Figure4.png",
-    width = 1600, height =1000, res = 96*2)
+    width = 1600, height =800, res = 96*2)
 par(opar)
-layout(matrix(c(1,2), 2, 1), heights = c(6,1))
+#layout(matrix(c(1,2), 2, 1), heights = c(6,1))
 par(mar = c(3, 5.5, 1, 1) + 0.5)
 
 labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
@@ -917,17 +919,17 @@ labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
 
 
 # Initiate Plot
-plot(spec.matrix[,1], type = "n", 
+plot(spec.matrix[,2], type = "n", 
      xlim = c(0.75, 10.25), ylim = c(0, 0.9),
      xaxt="n", yaxt="n", xlab = "", ylab = "")
-points(seq(0.9, 9.9, 1), spec.matrix[,1], pch = 22, cex = 2,
+points(seq(0.9, 9.9, 1), spec.matrix[,2], pch = 22, cex = 2,
        bg = "cornflowerblue", lwd = 2)
-points(seq(1.1, 10.1, 1), spec.matrix[,2], pch = 24, cex = 2,
-       bg = "cornflowerblue", lwd = 2)
-points(seq(0.9, 9.9, 1), spec.matrix[,4], pch = 22, cex = 2,
+#points(seq(1.1, 10.1, 1), spec.matrix[,2], pch = 24, cex = 2,
+#       bg = "cornflowerblue", lwd = 2)
+points(seq(0.9, 9.9, 1), spec.matrix[,5], pch = 22, cex = 2,
        bg = "wheat3", lwd = 2)
-points(seq(1.1, 10.1, 1), spec.matrix[,5], pch = 24, cex = 2,
-       bg = "wheat3", lwd = 2)
+#points(seq(1.1, 10.1, 1), spec.matrix[,5], pch = 24, cex = 2,
+#       bg = "wheat3", lwd = 2)
 
 abline(h = 0.5, lwd = 2, lty = 3)
 axis(side=1, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1, at = 1:10)
@@ -945,14 +947,13 @@ mtext(side = 2, "Proportion of Community", line = 3.5, cex = 1.5)
 box(lwd = 2)
 
 # Add Legend
-par(mar = c(0, 0, 0, 0) )
-plot.new()
+#par(mar = c(0, 0, 0, 0) )
+#plot.new()
 
-legend(0.175, 1, legend = c("Generalists (Total)", "Generalists (Active)",
-                            "Specialists (Total)", "Specialists (Active)"),
-       pch = c(22, 24, 22, 24), pt.lwd = 2,
-       pt.bg = c("cornflowerblue", "cornflowerblue", "wheat3", "wheat3"),
-       bty = "n", pt.cex = 1, cex = 0.85, ncol = 4, y.intersp = 1.5)
+legend("topright", legend = c("Generalists", "Specialists"),
+       pch = 22, pt.lwd = 2,
+       pt.bg = c("cornflowerblue", "wheat3"),
+       bty = "n", pt.cex = 1.25, cex = 1, ncol = 2, y.intersp = 1.5)
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices 
@@ -970,17 +971,17 @@ png(filename="../figures/Figure4B.png",
 par(opar)
 generalism <- matrix(NA, 10, 10)
 colnames(generalism) <- c(1:10)
-rownames(generalism) <- rownames(abundancesD)
+rownames(generalism) <- rownames(abundancesR)
 for (j in c(1:9)){
   for (i in 1:dim(generalism)[1]){
     generalism.temp <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.7) <= j]
-    generalism.temp.2 <- abundancesD[i, colnames(abundancesD) %in% generalism.temp]
+    generalism.temp.2 <- abundancesR[i, colnames(abundancesR) %in% generalism.temp]
     generalism[i,j] <- round(sum(generalism.temp.2), 3)
   }
 }
 for (i in 1:dim(generalism)[1]){
   generalism.temp <- rownames(ConRes.matrix)[rowSums(ConRes.matrix < -0.7) <= 30]
-  generalism.temp.2 <- abundancesD[i, colnames(abundancesD) %in% generalism.temp]
+  generalism.temp.2 <- abundancesR[i, colnames(abundancesR) %in% generalism.temp]
   generalism[i,10] <- round(sum(generalism.temp.2), 3)
 }
 
@@ -1028,6 +1029,20 @@ OTU.tax[,1] <- gsub("Otu000", "OTU",OTU.tax[,1])
 Gen.Tax <- OTU.tax[which(OTU.tax[,1] %in% generalists),]
 Spe.Tax <- OTU.tax[which(OTU.tax[,1] %in% specialists),]
 
+Gen.Tax.Class <- Gen.Tax$Class
+Spe.Tax.Class <- Spe.Tax$Class
+Gen.Tax.Gen <- Gen.Tax$Genus
+Spe.Tax.Gen <- Spe.Tax$Genus
+
+unique(Gen.Tax.Gen)
+unique(Spe.Tax.Gen)
+
+table(Gen.Tax.Gen)
+table(Spe.Tax.Gen)
+
+setdiff(unique(Gen.Tax.Gen), unique(Spe.Tax.Gen))
+setdiff(unique(Spe.Tax.Gen), unique(Gen.Tax.Gen))
+intersect(unique(Gen.Tax.Gen), unique(Spe.Tax.Gen))
 
 ```
 
