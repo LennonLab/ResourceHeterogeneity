@@ -40,6 +40,8 @@ require("colorspace")
 ## Lake Nutrient Concentrations
 ```{r}
 nuts <- read.csv(file = "../data/HMWF_Nutrients.txt", header = T)
+chl <- read.delim(file = "../data/ChlorophyllA.txt", header = T)
+chl <- chl[order(chl$Year, chl$Lake), ]
 ```
 
 ## Load DOM Profiles
@@ -148,10 +150,13 @@ range(nuts$DOC);range(nuts$TN);range(nuts$TP)
 CV(nuts$DOC)
 CV(nuts$TN)
 CV(nuts$TP)
+CV(chl$ChlA)
 
 cor.test(nuts$DOC, nuts$TN)
 cor.test(nuts$TN, nuts$TP)
 cor.test(nuts$DOC, nuts$TP)
+
+cor.test(nuts$DOC, chl$ChlA)
 
 
 # Principal Components Axis
@@ -163,6 +168,8 @@ PCA.res <- princomp(cbind(scale(nuts$DOC), scale(nuts$TN), scale(nuts$TP)))
 summary(PCA.res)
      
 PCA.res1 <- scale(PCA.res$scores[,1])
+
+cor.test(PCA.res1, chl$ChlA)
 ```
 
 # Statistical Description of DOM Structural Diversity 
@@ -354,7 +361,7 @@ legend("topleft", legend = bquote(italic(N.S.)),
 mtext("Species Richness", side = 2, line = 4, cex = 1.5)
 axis(1, lwd = 2, labels = F, at = c(0, 2))
 axis(1, lwd = 2, tck = -0.02, labels = F)
-axis(2, lwd = 2, labels = T, las = 1)
+axis(2, lwd = 2, labels = T, las = 1, cex.axis = 1.5)
 axis(3, lwd = 2, tck = -0.02, labels = F)
 axis(4, lwd = 2, tck = -0.02, labels = F)
 axis(1, lwd = 2, tck = 0.02, labels = F)
@@ -379,7 +386,7 @@ legend("topright", legend = bquote(italic(N.S.)),
        bty = "n", cex = 1.5, inset = 0.01)
 mtext("Resource Concentration", side = 1, line = 3.5, cex = 1.5)
 mtext("Species Evenness", side = 2, line = 4, cex = 1.5)
-axis(1, lwd = 2, labels = T, at = c(0, 0.5, 1, 1.5, 2))
+axis(1, lwd = 2, labels = T, at = c(0, 0.5, 1, 1.5, 2), cex.axis = 1.5)
 axis(1, lwd = 2, tck = -0.02, labels = F)
 axis(2, lwd = 2, labels = T, las = 1, at = c(seq(0, 0.06, 0.02)))
 axis(3, lwd = 2, tck = -0.02, labels = F)
@@ -428,7 +435,7 @@ legend("topleft", legend = bquote(italic(P) == .(mod4.p)),
        bty = "n", cex = 1.5, inset = c(-0.05, 0.01))
 mtext("DOM Richness", side = 1, line = 3.5, cex = 1.5)
 # mtext("Species Evenness", side = 2, line = 3.5, cex = 1.5)
-axis(1, lwd = 2, labels = T, las = 1, at = c(seq(520, 570, 10)))
+axis(1, lwd = 2, labels = T, las = 1, at = c(seq(520, 570, 10)), cex.axis = 1.5)
 axis(2, lwd = 2, labels = F, las = 1, at = c(seq(0, 0.06, 0.02)))
 axis(3, lwd = 2, tck = -0.02, labels = F, at = c(seq(520, 570, 10)))
 axis(4, lwd = 2, tck = -0.02, labels = F, at = c(seq(0, 0.06, 0.02)))
@@ -555,6 +562,8 @@ RsquareAdj(dbRDA.R.DOM.2)
 cor.test(dat2R$PCA, pcoa.res$points[,1])
 cor.test(dat2R$PCA, pcoa.res$points[,2])
 cor.test(dat2R$PCA, pcoa.res$points[,3])
+
+
 ```
 
 # Bacterial PCoA Plot with Env Vectors
@@ -590,8 +599,8 @@ plot(pcoa.BAC$points[ ,1], pcoa.BAC$points[ ,2],
      axes = FALSE)
 
 # Add Axes
-axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1, las = 1)
-axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1, las = 1)
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.25, las = 1)
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.25, las = 1)
 axis(side = 3, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
 axis(side = 4, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=-0.02)
 axis(side = 1, labels = F, lwd.ticks = 2, cex.axis = 1, las = 1, tck=0.01)
@@ -608,23 +617,23 @@ points(pcoa.BAC$points[ ,1], pcoa.BAC$points[ ,2], pch = 22,
 # Resource Concentration Vector
 res.con <- envfit(pcoa.BAC, cons.RES)
 con.arrows <- res.con[[1]]$arrows * 0.3
-arrows(0, 0, con.arrows[, 1], con.arrows[, 2], col = "red", length = 0.1, lwd = 2)
-text(con.arrows[, 1] * 1.2, con.arrows[, 2] * 1.2, "Conc.", col = "red", cex = 1)
+arrows(0, 0, con.arrows[, 1], con.arrows[, 2], col = "gray10", length = 0.1, lwd = 2)
+text(con.arrows[, 1] * 1.2, con.arrows[, 2] * 1.2, "Conc.", col = "black", cex = 1)
 
 # DOM Composition Vectors
 res.com <- envfit(pcoa.BAC, pcoa.RES$points[,1:2])
 com.arrows <- res.com[[1]]$arrows * 0.3
-arrows(0, 0, com.arrows[1, 1], com.arrows[1, 2], col = "blue", length = 0.1, lwd = 2)
-arrows(0, 0, com.arrows[2, 1], com.arrows[2, 2], col = "blue", length = 0.1, lwd = 2)
-text(com.arrows[1, 1] * 1.15, com.arrows[1, 2] * 1.15, "DOM 1", col = "blue", cex = 1)
-text(com.arrows[2, 1] * 1.22, com.arrows[2, 2] + 0.03, "DOM 2", col = "blue", 
+arrows(0, 0, com.arrows[1, 1], com.arrows[1, 2], col = "gray60", length = 0.1, lwd = 2)
+arrows(0, 0, com.arrows[2, 1], com.arrows[2, 2], col = "gray60", length = 0.1, lwd = 2)
+text(com.arrows[1, 1] * 1.15, com.arrows[1, 2] * 1.15, "DOM 1", col = "black", cex = 1)
+text(com.arrows[2, 1] * 1.22, com.arrows[2, 2] + 0.03, "DOM 2", col = "black", 
      cex = 1, pos = 1)
 
 text(0.45, -0.05, "Pony", col = "black", cex = 0.8)
 text(0.58, 0.12, "Lily", col = "black", cex = 0.8)
 
 legend("bottomright", c("Resource Concentration Model", "Resource Composition Model"),
-       lwd = 2, col = c("red", "blue", "blue"), bty = "n")
+       lwd = 2, col = c("gray10", "gray60", "gray60"), bty = "n")
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices
@@ -903,16 +912,21 @@ for (i in 1:(dim(spec.matrix)[1])){
   spec.matrix[i,5] <- round(sum(temp.specA), 3)
   spec.matrix[i,6] <- sum(temp.specA > 0)
 }
+
+
+t.test(spec.matrix[, 2], spec.matrix[,4], var.equal = T)
+
+
 #```
 
 
 # Generalist:Specialists Ratio Plot
 #```{r, results='hide'}
 png(filename="../figures/Figure4.png",
-    width = 1600, height =800, res = 96*2)
+    width = 1600, height = 1600, res = 96*2)
 par(opar)
-#layout(matrix(c(1,2), 2, 1), heights = c(6,1))
-par(mar = c(3, 5.5, 1, 1) + 0.5)
+layout(matrix(c(1,2), 2, 1))
+par(mar = c(5, 5, 0, 0) + 0.5, oma = c(0.5, 1, 1, 1))
 
 labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
          "Second\nPine","Upper\nPine")
@@ -920,14 +934,14 @@ labs <- c("Ann", "Canyon", "Howe", "Ives", "Lily", "Mountain", "Pony", "Rush",
 
 # Initiate Plot
 plot(spec.matrix[,2], type = "n", 
-     xlim = c(0.75, 10.25), ylim = c(0, 0.9),
+     xlim = c(0.75, 10.25), ylim = c(0, 0.8),
      xaxt="n", yaxt="n", xlab = "", ylab = "")
 points(seq(0.9, 9.9, 1), spec.matrix[,2], pch = 22, cex = 2,
-       bg = "cornflowerblue", lwd = 2)
+       bg = "gray80", lwd = 2)
 #points(seq(1.1, 10.1, 1), spec.matrix[,2], pch = 24, cex = 2,
 #       bg = "cornflowerblue", lwd = 2)
-points(seq(0.9, 9.9, 1), spec.matrix[,5], pch = 22, cex = 2,
-       bg = "wheat3", lwd = 2)
+points(seq(0.9, 9.9, 1), spec.matrix[,5], pch = 24, cex = 2,
+       bg = "gray80", lwd = 2)
 #points(seq(1.1, 10.1, 1), spec.matrix[,5], pch = 24, cex = 2,
 #       bg = "wheat3", lwd = 2)
 
@@ -942,6 +956,7 @@ axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1)
 axis(side=4, lwd.ticks = 2, tck=0.01, labels = F, cex.axis = 1)
 
 mtext(side = 1, text = labs, line = 1, at = seq(1:10), padj = 0.5, cex = 0.8)
+mtext(side = 1, text = "Lake", line = 3, cex = 1.5)
 mtext(side = 2, "Proportion of Community", line = 3.5, cex = 1.5)
 
 box(lwd = 2)
@@ -951,24 +966,12 @@ box(lwd = 2)
 #plot.new()
 
 legend("topright", legend = c("Generalists", "Specialists"),
-       pch = 22, pt.lwd = 2,
-       pt.bg = c("cornflowerblue", "wheat3"),
+       pch = c(22, 24), pt.lwd = 2,
+       pt.bg = "gray80",
        bty = "n", pt.cex = 1.25, cex = 1, ncol = 2, y.intersp = 1.5)
 
-dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices 
-#```
 
-#```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
-img <- readPNG("../figures/Figure4.png")
-grid.raster(img)
-```
 
-# Generalist:Specialists Ratio Plot: Sensitivity
-```{r, results='hide'}
-png(filename="../figures/Figure4B.png",
-    width = 1200, height =800, res = 96*2)
-par(opar)
 generalism <- matrix(NA, 10, 10)
 colnames(generalism) <- c(1:10)
 rownames(generalism) <- rownames(abundancesR)
@@ -985,7 +988,6 @@ for (i in 1:dim(generalism)[1]){
   generalism[i,10] <- round(sum(generalism.temp.2), 3)
 }
 
-par(mar = c(4, 5, 1, 1) + 0.5)
 plot(generalism[1,], type = 'n', las = 1, axes = F,
      xlim = c(0.5,10.5), ylim = c(0,0.9),
      ylab = "",
@@ -993,6 +995,9 @@ plot(generalism[1,], type = 'n', las = 1, axes = F,
 for (i in 1:10){
   points(generalism[i, ], pch = 22, bg = "gray", lwd = 2, cex = 1.5)
 }
+
+abline(v = 2.5, lty = 2, lwd = 2)
+abline(v = 6.5, lty = 3, lwd = 2)
 
 axis(side=1, lwd.ticks = 2, tck=-0.04, labels = c("2", "4", "6", "8", "10+"), 
      at = c(seq(2,10,2)), cex.axis = 1, las = 1)
@@ -1005,10 +1010,28 @@ axis(side=3, lwd.ticks = 2, tck= 0.01, labels = F, cex.axis = 1)
 axis(side=4, lwd.ticks = 2, tck=-0.02, labels = F, cex.axis = 1)
 axis(side=4, lwd.ticks = 2, tck= 0.01, labels = F, cex.axis = 1)
 
-mtext(side = 1, "Number of Resources", cex = 1.5, line = 2.5)
-mtext(side = 2, "Cumulative Proportion", cex = 1.5, line = 3)
+mtext(side = 1, "Number of Resources", cex = 1.5, line = 3)
+mtext(side = 2, "Cumulative Proportion", cex = 1.5, line = 3.5)
 
 box(lwd = 2)
+
+
+
+dev.off() # this writes plot to folder
+graphics.off() # shuts down open devices 
+#```
+
+#```{r fig.width=4, fig.height=4,echo=FALSE,fig.cap="Interaction Heatmap"}
+img <- readPNG("../figures/Figure4.png")
+grid.raster(img)
+```
+
+# Generalist:Specialists Ratio Plot: Sensitivity
+```{r, results='hide'}
+png(filename="../figures/Figure4B.png",
+    width = 1200, height =800, res = 96*2)
+par(opar)
+
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices 

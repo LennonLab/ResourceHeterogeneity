@@ -65,6 +65,10 @@ lake.data$area[10] <- shape$AREA[which(shape$NAME == "Third Lake" & grp.opt)]
 # Convert sq m to sq km
 lake.data$area <- lake.data$area / 1000000
 
+# Area in ha
+lake.data$area
+lake.data$area * 100
+
 # Wriate data table
 write.csv(lake.data, file = "../data/lake_data2.txt", row.names=T)
 
@@ -94,10 +98,10 @@ par(opar)
 par(mfrow = c(1,1), mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0) + 0.5)
 
 newmap1 <- GetMap(center = c(46.86, -87.93), zoom = 13, 
-                  maptype = "terrain", GRAYSCALE = FALSE, frame = FALSE,
+                  maptype = "terrain", GRAYSCALE = TRUE, frame = FALSE,
                   path = "&style=feature:all|element:labels|visibility:off")
 newmap2 <- GetMap(center = c(46.86, -87.82), zoom = 13, 
-                  maptype = "terrain", GRAYSCALE = FALSE, frame = FALSE,
+                  maptype = "terrain", GRAYSCALE = TRUE, frame = FALSE,
                   path = "&style=feature:all|element:labels|visibility:off")
 
 layout( matrix(c(1,1,1,1,2,2,2,2,
