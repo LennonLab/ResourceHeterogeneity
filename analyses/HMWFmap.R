@@ -65,6 +65,10 @@ lake.data$area[10] <- shape$AREA[which(shape$NAME == "Third Lake" & grp.opt)]
 # Convert sq m to sq km
 lake.data$area <- lake.data$area / 1000000
 
+# Area in ha
+lake.data$area
+lake.data$area * 100
+
 # Wriate data table
 write.csv(lake.data, file = "../data/lake_data2.txt", row.names=T)
 
@@ -90,14 +94,14 @@ write.csv(lake.data, file = "../data/lake_data2.txt", row.names=T)
 ## Figure 1: Study System Map
 png(filename="../figures/Supp1.png",
     width = 1800, height = 900, res = 96*2)
-par(opar)
+#par(opar)
 par(mfrow = c(1,1), mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0) + 0.5)
 
 newmap1 <- GetMap(center = c(46.86, -87.93), zoom = 13, 
-                  maptype = "terrain", GRAYSCALE = FALSE, frame = FALSE,
+                  maptype = "terrain", GRAYSCALE = TRUE, frame = FALSE,
                   path = "&style=feature:all|element:labels|visibility:off")
 newmap2 <- GetMap(center = c(46.86, -87.82), zoom = 13, 
-                  maptype = "terrain", GRAYSCALE = FALSE, frame = FALSE,
+                  maptype = "terrain", GRAYSCALE = TRUE, frame = FALSE,
                   path = "&style=feature:all|element:labels|visibility:off")
 
 layout( matrix(c(1,1,1,1,2,2,2,2,
@@ -109,25 +113,25 @@ layout.show(3)
 
 # Left Side
 PlotOnStaticMap(newmap1, zoom = 13, cex = 2, col = "blue")
-text(-120, 270, "Howe", col="red", cex=1.2)
-text(100, 255, "Rush", col="red", cex=1.2)
-text(105, 55, "Mountain", col="red", cex=1.2)
+text(-120, 270, "Howe", col="red", cex=1.75)
+text(100, 255, "Rush", col="red", cex=1.75)
+text(105, 55, "Mountain", col="red", cex=1.75)
 arrows(10, 100, x1 = -10, y1 = 100, length=0.05, col = "red", lwd = 2, code = 1)
-text(-36, 100, "Ann", col="red", cex=1.2)
+text(-36, 100, "Ann", col="red", cex=1.75)
 arrows(60, 230, x1 = 40, y1 = 230, length=0.05, col = "red", lwd = 2, code = 1)
-text(8, 230, "Pony", col="red", cex=1.2)
+text(8, 230, "Pony", col="red", cex=1.75)
 arrows(55, -230, x1 = 75, y1 = -230, length=0.05, col = "red", lwd = 2, code = 1)
-text(120, -230, "Canyon", col="red", cex=1.2)
+text(122, -230, "Canyon", col="red", cex=1.75)
 
 # Right Side
 PlotOnStaticMap(newmap2, zoom = 13, cex = 2, col = "blue")
-text(-180, -90, "Ives", col="red", cex=1.2)
+text(-180, -90, "Ives", col="red", cex=1.75)
 arrows(-160, 20, x1 = -140, y1 = 20, length = 0.05, col = "red", lwd = 2, code = 1)
-text(-75, 20, "Upper Pine", col="red", cex = 1.2)
+text(-72, 20, "Upper Pine", col="red", cex = 1.75)
 arrows(-220, 80, x1 = -200, y1 = 80, length = 0.05, col = "red", lwd = 2, code = 1)
-text(-125, 80, "Second Pine", col="red", cex = 1.2)
+text(-122, 80, "Second Pine", col="red", cex = 1.75)
 arrows(-55, -105, x1 = -35, y1 = -105, length = 0.05, col = "red", lwd = 2, code = 1)
-text(-12, -105, "Lily", col="red", cex=1.2)
+text(-12, -105, "Lily", col="red", cex=1.75)
 
 # Compass Arrow
 arrows(280, 280, 280, 240, length = 0.1, col = "black", lwd = 3, code = 1)
@@ -136,7 +140,7 @@ text(280, 220, "N", col = "black", cex = 1.5)
 # Inset
 map("state", "Michigan", col = "gray80", fill = TRUE, 
     xlim = c(-92,-82), ylim = c(41, 48))
-points(-87.89, 46.8, pch = 20, col = "red")
+points(-87.89, 46.8, pch = 20, col = "red", cex = 1.5)
 
 dev.off() # this writes plot to folder
 graphics.off() # shuts down open devices 
