@@ -46,7 +46,7 @@ lake.data$area <- rep(NA, dim(lake.data)[1])
 # Study System Map
 # Shape file source: http://www.mcgi.state.mi.us/mgdl/?rel=ext&action=sext
 
-shape <- readShapePoly("../data/lake_polygons_200403/lake_polygons_200403.shp", 
+shape <- readShapePoly("../data/lake_polygons_200403/lake_polygons_200403.shp",
                        IDvar = "UNIQUE_ID")
 
 # Extract Areas
@@ -75,7 +75,7 @@ write.csv(lake.data, file = "../data/lake_data2.txt", row.names=T)
 # Notes on how to get shapefile info
 # str(shape, max.level=4)
 # Attempt to find Pony
-# plot(shape[which(shape$LAKE_NAME == "no name" & 
+# plot(shape[which(shape$LAKE_NAME == "no name" &
 # shape$COUNTY == "Marquette" & shape$FMU == "LSW"), ])
 
 # Plot from shapefile (just to check)
@@ -92,15 +92,15 @@ write.csv(lake.data, file = "../data/lake_data2.txt", row.names=T)
 #   which(shape$NAME == "Third Lake" & grp.opts)),])
 
 ## Figure 1: Study System Map
-png(filename="../figures/Supp1.png",
+png(filename="../figures/FigureS1.png",
     width = 1800, height = 900, res = 96*2)
 #par(opar)
 par(mfrow = c(1,1), mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0) + 0.5)
 
-newmap1 <- GetMap(center = c(46.86, -87.93), zoom = 13, 
+newmap1 <- GetMap(center = c(46.86, -87.93), zoom = 13,
                   maptype = "terrain", GRAYSCALE = TRUE, frame = FALSE,
                   path = "&style=feature:all|element:labels|visibility:off")
-newmap2 <- GetMap(center = c(46.86, -87.82), zoom = 13, 
+newmap2 <- GetMap(center = c(46.86, -87.82), zoom = 13,
                   maptype = "terrain", GRAYSCALE = TRUE, frame = FALSE,
                   path = "&style=feature:all|element:labels|visibility:off")
 
@@ -138,11 +138,9 @@ arrows(280, 280, 280, 240, length = 0.1, col = "black", lwd = 3, code = 1)
 text(280, 220, "N", col = "black", cex = 1.5)
 
 # Inset
-map("state", "Michigan", col = "gray80", fill = TRUE, 
+map("state", "Michigan", col = "gray80", fill = TRUE,
     xlim = c(-92,-82), ylim = c(41, 48))
 points(-87.89, 46.8, pch = 20, col = "red", cex = 1.5)
 
 dev.off() # this writes plot to folder
-graphics.off() # shuts down open devices 
-
-
+graphics.off() # shuts down open devices
