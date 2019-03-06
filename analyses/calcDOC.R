@@ -12,7 +12,7 @@
 #                                                                              #
 ################################################################################
 #                                                                              #
-# Notes: This script processes the raw data optained for total nitrogen        #
+# Notes: This script processes the raw data obtained for total nitrogen        #
 #         concentrations in Huron Mountain lakes. The data were generated      #
 #         using a Tic/Toc-TN instrument (specs                                 #
 #                                                                              #
@@ -162,6 +162,3 @@ data
 #Export Data
 write.table(data,file="./data/2012DOC_data.txt", col.names=TRUE,
             row.names=FALSE,sep="\t")
-
-
-
