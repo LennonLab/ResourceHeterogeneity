@@ -28,7 +28,7 @@ opar <- par(no.readonly = TRUE)  # Saves plot defaults
 
 # Load Required Packages
 require("png"); require("grid");require("vegan"); require("igraph")
-require("picante")# ;require("bioDist");require("gplots")
+require("picante"); require("gplots")# ;require("bioDist");
 #require("xtable");require("phyloseq");require("car"); require("ade4");require("bioDist")
 require("colorspace"); library("car")
 source("../bin/box.cox.chord.R")
@@ -168,8 +168,8 @@ OTUs.in.2 <- OTUs.in[, -c(which(OTU.tax$Phylum == "Cyanobacteria/Chloroplast"))]
 dim(OTUs.in.2)
 
 OTU.tax.2 <- OTU.tax[which(OTU.tax$OTU %in% colnames(OTUs.in.2)), ]
-table(OTU.tax.2$Class)
-table(OTU.tax.2$Phylum)
+#table(OTU.tax.2$Class)
+#table(OTU.tax.2$Phylum)
 
 # Data Transformations
 # Reorder Site
@@ -1109,11 +1109,11 @@ grid.raster(img)
 sp.gens <- which(colSums(OTUsPA) >= 8)
 length(sp.gens); length(sp.gens)/dim(OTUsPA)[2]
 sp.gen.tax <- OTU.tax[which(OTU.tax$OTU %in% names(sp.gens)), ]
-table(sp.gen.tax$Phylum)
-table(sp.gen.tax$Class)
-table(sp.gen.tax$Order)
-table(sp.gen.tax$Family)
-table(sp.gen.tax$Genus)
+#table(sp.gen.tax$Phylum)
+#table(sp.gen.tax$Class)
+#table(sp.gen.tax$Order)
+#table(sp.gen.tax$Family)
+#table(sp.gen.tax$Genus)
 
 # Save Spatial Generalits
 write.table(sp.gen.tax, "../data/SpatialGeneralists.txt", quote = F, 
@@ -1122,7 +1122,7 @@ write.table(sp.gen.tax, "../data/SpatialGeneralists.txt", quote = F,
 # Define specialists as those found at only 2 or fewer sites
 sp.spec <- which(colSums(OTUsPA) <= 5)
 sp.spe.tax <- OTU.tax[which(OTU.tax$OTU %in% names(sp.spec)), ]
-table(sp.spe.tax$Order)
+#table(sp.spe.tax$Order)
 ```
 
 ## Consumer-Resource Interaction
@@ -1278,10 +1278,10 @@ re.gens <- rownames(ConRes.matrix)[rowSums(ConRes.matrix <= -0.7) >= 4]
 # re.gens <- rownames(ConRes.matrix)[rowSums(abs(ConRes.matrix) >= 0.7) >= 6]
 length(re.gens); length(re.gens)/dim(OTUsPA)[2]#  (67; 88)
 re.gen.tax <- OTU.tax[which(OTU.tax$OTU %in% re.gens), ]
-table(re.gen.tax$Phylum)
-table(re.gen.tax$Class)
-table(re.gen.tax$Order)
-table(re.gen.tax$Family)
+#table(re.gen.tax$Phylum)
+#table(re.gen.tax$Class)
+#table(re.gen.tax$Order)
+#table(re.gen.tax$Family)
 
 # Save Resource Generalits
 write.table(re.gen.tax, "../data/ResourceGeneralists.txt", quote = F, 
@@ -1289,7 +1289,7 @@ write.table(re.gen.tax, "../data/ResourceGeneralists.txt", quote = F,
 
 re.spec <- rownames(ConRes.matrix)[rowSums(ConRes.matrix <= -0.7) <= 2]
 re.spe.tax <- OTU.tax[which(OTU.tax$OTU %in% re.spec), ]
-table(re.spe.tax$Order)
+#table(re.spe.tax$Order)
 
 
 length(re.gens); length(re.gens) /dim(OTUsPA)[2]
@@ -1454,7 +1454,7 @@ grid.raster(img)
 ## Figure S6: Example Responders
 ```{r, results='hide'}
 png(filename="../figures/FigureS6.png",
-    width = 1600, height = 900, res = 96*2)
+    width = 1600, height = 900, res = 96*2, bg = "white")
 par(opar)
 
 # Example Taxa

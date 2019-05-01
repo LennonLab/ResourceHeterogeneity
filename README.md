@@ -1,8 +1,7 @@
 Resource heterogeneity structures aquatic bacterial communities
 =======
 
-This repository contains the code used in Muscarella et al. (2019) Resource heterogeneity structures aquatic bacterial communities. ISME
-
+This repository contains the code used in Muscarella et al. (2019) Resource heterogeneity structures aquatic bacterial communities. ISME J
 
 ## Goal
 
@@ -11,20 +10,17 @@ Community diversity is strongly affected by the bottom-up effects of resource av
 
 ## Contents
 
-* **bin:** 
+* **bin:** This folder contains scripts used throughout this project. These are mainly used for custom functions.
 
-* **data:**
+* **data:** This folder contains all non-sequence data needed to reproduce the analyses in this study. Some of these are output files from analyzing the raw data. 
 
-* **analyses:**
+* **analyses:** This foler contains scripts for analyzing raw data and for producing all of the analyses used in the manuscript. 
 
-* **figures:**
-
-
+* **figures:** This folder contains all figures used in the manuscript and supplemental. 
 
 
 ## Sequence Data Availability
-
-
+All sequence data is available on NCBI BioProject PRJNA540276
 
 ## Funding Sources  
 
@@ -38,7 +34,3 @@ Community diversity is strongly affected by the bottom-up effects of resource av
 [Mario Muscarella](http://mmuscarella.github.io/): Postdoctoral Researcher (former PhD student in Lennon Lab). Conducted the experiments and analyzed the data
 
 [Dr. Jay Lennon](http://www.indiana.edu/~microbes/people.php): Principle Investigator, Associate Professor, Department of Biology, Indiana University, Bloomington. Head of the [Lennon Lab](http://www.indiana.edu/~microbes/people.php). 
-
-## License
-
-These materials are licensed under GPL3 and are distributed . See attached license file
