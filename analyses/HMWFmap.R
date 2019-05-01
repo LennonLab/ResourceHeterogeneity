@@ -39,7 +39,7 @@ require("maptools")
 ## Imorted because we will add area from the map files
 
 lake.data <- read.csv("../data/lake_data.txt", row.names=1)
-colnames(lake.data) <- c("lat", "long", "area", "pH", "DO1", "DO2", "Temp1", "Temp2")
+colnames(lake.data) <- c("lat", "long", "elev", "area", "pH", "DO1", "DO2", "Temp1", "Temp2")
 lake.data$area <- rep(NA, dim(lake.data)[1])
 
 

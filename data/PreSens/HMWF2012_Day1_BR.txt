@@ -1,4 +1,0 @@
-Sample,Start,End,Rate (µM O2 Hr-1),R2,P-value
-Canyon,70,90,1.62,0.883,<0.001
-Canyon,70,90,0.879,0.834,<0.001
-Canyon,70,90,1.47,0.922,<0.001
